@@ -2,9 +2,9 @@
 #
 # Copyright 2013 Tanel Alumae
 
-"""Simplified chat demo for websockets.
-
-Authentication, error handling, etc are left as an exercise for the reader :)
+"""
+Reads speech data via websocket requests, sends it to Redis, waits for results from Tedis and
+forwards to client via websocket
 """
 import threading
 import time

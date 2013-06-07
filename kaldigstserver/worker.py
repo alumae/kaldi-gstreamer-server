@@ -2,6 +2,8 @@
 Created on Jun 6, 2013
 
 @author: tanel
+
+Worker process: reads speech data from Redis, forwards to decoder, reads results from decoder, puts to Redis 
 '''
 import redis
 import logging

@@ -9,7 +9,6 @@ from gi.repository import GObject, Gst
 
 GObject.threads_init()
 Gst.init(None)
-print "GObject initialized"
 import thread
 import threading
 import logging
@@ -163,12 +162,19 @@ if __name__ == '__main__':
             
     logging.basicConfig(level=logging.INFO)
     decoder_pipeline = DecoderPipeline()
+    
+    def word_printer(word):
+        print word
+        
+    def set_finished(finished):
+        finished[0] = True
+    
     decoder_pipeline.set_word_handler(word_printer)
     decoder_pipeline.set_eos_handler(set_finished, finished)
     
     def do_shit():
         decoder_pipeline.init_request("test0", "audio/x-raw,rate=16000,channels=1,format=(string)S16LE")
-        f = open("tmp/intervjuu201108091200_0332.723-0338.381.wav", "rb")
+        f = open("test/data/test.raw", "rb")
         for block in iter(lambda: f.read(2*16000), ""):
             #time.sleep(1)
             decoder_pipeline.process_data(block)

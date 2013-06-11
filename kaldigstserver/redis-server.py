@@ -3,12 +3,14 @@
 # Copyright 2013 Tanel Alumae
 
 """
-Reads speech data via websocket requests, sends it to Redis, waits for results from Tedis and
+Reads speech data via websocket requests, sends it to Redis, waits for results from Redis and
 forwards to client via websocket
 """
 import threading
 import time
 import logging
+import datetime
+
 import tornado.escape
 import tornado.ioloop
 import tornado.options
@@ -61,10 +63,10 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         self.close()
     
     def _poll_for_words(self):
-        timeout = 10
+        
         while True:
             logger.debug("%s: Polling redis for words" % self.id)
-            rval = self.application._redis.blpop("%s:%s:text" % (self.application._redis_namespace, self.id), timeout=timeout)
+            rval = self.application._redis.blpop("%s:%s:text" % (self.application._redis_namespace, self.id), timeout=self.timeout)
             if rval:
                 (key, word) = rval
                 if word == "__EOS__":
@@ -73,7 +75,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
                 else:
                     self._send_word(word)
             else:
-                logger.warning("%s: No words received in last %d seconds, giving up" % (self.id, timeout))
+                logger.warning("%s: No words received in last %d seconds, giving up" % (self.id, self.timeout))
                 self.close()
                 return
             
@@ -84,8 +86,16 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         self.id = str(uuid.uuid4())
         self.total_length = 0
+        self.timeout = 10
         logger.info("%s: OPEN" % self.id)
+        content_type = self.get_argument("content-type", None, True)
+        if content_type:
+            logger.debug("Using content type: %s" % content_type)
+            self.application._redis.set("%s:%s:content_type" % (self.application._redis_namespace, self.id), content_type)
+            self.application._redis.expire("%s:%s:content_type" % (self.application._redis_namespace, self.id), 
+                                           datetime.timedelta(seconds=self.timeout))
         self.application._redis.rpush("%s:requests" % self.application._redis_namespace , self.id)
+        
         t = threading.Thread(target=self._poll_for_words)
         t.daemon = True
         t.start()

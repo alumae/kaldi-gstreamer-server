@@ -12,6 +12,7 @@ import thread
 import argparse
 import sys
 
+
 from gi.repository import GObject, Gst
 
 from decoder import DecoderPipeline
@@ -28,7 +29,7 @@ TIMEOUT_DECODER = 3
 
 def process(id):
     global last_decoder_message
-    last_decoder_message = 0
+    last_decoder_message = time.time()
     finished = [False]
     
     def _on_word(word):
@@ -44,8 +45,11 @@ def process(id):
 
     decoder_pipeline.set_word_handler(_on_word)
     decoder_pipeline.set_eos_handler(_on_eos)
-        
-    decoder_pipeline.init_request(id, "audio/x-raw,rate=16000,channels=1,format=(string)S16LE")
+    
+    content_type =_redis.get("%s:%s:content_type" % (_redis_namespace, id))
+    logger.info("Using content type %s" % content_type)
+    
+    decoder_pipeline.init_request(id, content_type)
     while True:
         rval = _redis.blpop("%s:%s:speech" % (_redis_namespace, id), TIMEOUT)
         if rval:
@@ -84,7 +88,14 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--namespace', default="speech_dev", dest="namespace")
     parser.add_argument('-s', '--host', default="localhost", dest="host")
     parser.add_argument('-p', '--port', default=6379, dest="port", type=int)
+    parser.add_argument('-f', '--fork', default=1, dest="fork", type=int)
     args = parser.parse_args()
+    
+    if args.fork > 1:
+        import tornado.process
+        logging.info("Forking into %d processes" % args.fork)
+        tornado.process.fork_processes(args.fork)
+    
     _redis_namespace = args.namespace
     _redis = redis.Redis(host=args.host, port=args.port)
     logger.debug("Using namespace %s" % _redis_namespace)

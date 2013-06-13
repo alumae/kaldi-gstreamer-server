@@ -46,12 +46,12 @@ class DecoderPipeline(object):
         self.asr = Gst.ElementFactory.make("onlinegmmfasterdecoder", "asr")
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
 
-        #self.asr.set_property("fst", "tmp/models/tri2b_mmi/HCLG.fst")
-        #self.asr.set_property("model", "tmp/models/tri2b_mmi/model")
-        #self.asr.set_property("word-syms", "tmp/models/tri2b_mmi/words.txt")
-        #self.asr.set_property("lda-mat", "tmp/models/tri2b_mmi/matrix")
-        #self.asr.set_property("silence-phones", "6")
-        #self.asr.set_property("acoustic-scale", 1.0/13)
+        self.asr.set_property("fst", "tmp/models/tri2b_mmi/HCLG.fst")
+        self.asr.set_property("model", "tmp/models/tri2b_mmi/model")
+        self.asr.set_property("word-syms", "tmp/models/tri2b_mmi/words.txt")
+        self.asr.set_property("lda-mat", "tmp/models/tri2b_mmi/matrix")
+        self.asr.set_property("silence-phones", "6")
+        self.asr.set_property("acoustic-scale", 1.0/13)
 
      
         self.filesink.set_property("location", "/dev/null")

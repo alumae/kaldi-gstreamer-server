@@ -11,6 +11,7 @@ import time
 import thread
 import argparse
 import sys
+import datetime
 
 
 from gi.repository import GObject, Gst
@@ -26,6 +27,7 @@ decoder_pipeline = DecoderPipeline()
 
 TIMEOUT = 1
 TIMEOUT_DECODER = 3
+EXPIRE_RESULTS=10
 
 def process(id):
     global last_decoder_message
@@ -37,10 +39,12 @@ def process(id):
         last_decoder_message = time.time()
         _redis.rpush("%s:%s:text" % (_redis_namespace, id) , word)
 
-    def _on_eos(word):
+    def _on_eos(data=None):
         global last_decoder_message
         last_decoder_message = time.time()
         _redis.rpush("%s:%s:text" % (_redis_namespace, id) , "__EOS__")
+        _redis.expire("%s:%s:text" % (_redis_namespace, id), datetime.timedelta(seconds=EXPIRE_RESULTS))
+        
         finished[0] = True
 
     decoder_pipeline.set_word_handler(_on_word)
@@ -61,6 +65,7 @@ def process(id):
                 decoder_pipeline.process_data(data)
         else:
             logging.info("Timeout occurred for %s. Stopping processing." % id)
+            _on_eos()
             decoder_pipeline.cancel()
             return
             
@@ -69,11 +74,12 @@ def process(id):
         if time.time() - last_decoder_message > TIMEOUT_DECODER:
             logger.warning("More than %d seconds from last decoder activity, cancelling" % TIMEOUT_DECODER)
             decoder_pipeline.cancel()
+            _on_eos()
             return
         logger.info("Waiting for decoder end")
         time.sleep(1)
     
-            
+
         
 def main_loop():
     while True:

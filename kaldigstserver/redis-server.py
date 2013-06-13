@@ -51,7 +51,7 @@ class Application(tornado.web.Application):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("index.html")
+        self.render("../../README.md")
 
 class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def _send_word(self, word):
@@ -90,7 +90,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         logger.info("%s: OPEN" % self.id)
         content_type = self.get_argument("content-type", None, True)
         if content_type:
-            logger.debug("Using content type: %s" % content_type)
+            logger.debug("%s: Using content type: %s" % (self.id, content_type))
             self.application._redis.set("%s:%s:content_type" % (self.application._redis_namespace, self.id), content_type)
             self.application._redis.expire("%s:%s:content_type" % (self.application._redis_namespace, self.id), 
                                            datetime.timedelta(seconds=self.timeout))

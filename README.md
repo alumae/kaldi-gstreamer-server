@@ -7,7 +7,7 @@ Server usage
 Using the server is very easy:
 
   * open the websocket 
-  * send chunks of binary speech data to the websocket (either raw or encoded, see below); the chunks should be sent at least once per second, otherwise the server assumes the client is "sleeping" and closes the connection
+  * send chunks of binary speech data to the websocket (either raw or encoded, see below); the chunks should be sent at least once per second, otherwise the server assumes the client is "stale" and closes the connection
   * read recognized words from websocket (sent on word-by-word basis), with a special word "<#s>" marking sentence break
   * finally send the string "EOS" (""end-of-stream") to the websocket
   * when server closes the websocket, all data has been recognized and sent to the client
@@ -18,5 +18,4 @@ Speech data can be sent as raw or encoded. To send raw data, one has to specify 
   
 One can also send data that is already encoded in some known format (e.g., wav, mp3, ogg, speex, anything that GStreamer supports). In this case, you don't have to send the content type at all -- the server recognizes the encoding automatically.
 
-
-
+Server closes the connection when the stream has been fully decoded, or when no new words have been recognized during the last 10 seconds. That means, when you send a long section of silence, the server closes the connection (this to avoid stale connections).

@@ -110,6 +110,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             logger.debug("%s: EOS from client after %d bytes" % (self.id, self.total_length))
             self.application._redis.rpush("%s:%s:speech" % (self.application._redis_namespace, self.id) , "__EOS__")
         else:
+            logger.debug("%s: Received %d bytes" % (self.id, len(message)))
             self.total_length += len(message)
             self.application._redis.rpush("%s:%s:speech" % (self.application._redis_namespace, self.id) , message)
 

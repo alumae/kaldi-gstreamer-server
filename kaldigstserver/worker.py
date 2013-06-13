@@ -25,8 +25,8 @@ _redis_namespace = "speech_dev"
 decoder_pipeline = DecoderPipeline()
 
 
-TIMEOUT = 1
-TIMEOUT_DECODER = 3
+CHUNK_TIMEOUT = 2
+TIMEOUT_DECODER = 5
 EXPIRE_RESULTS=10
 
 def process(id):
@@ -55,7 +55,7 @@ def process(id):
     
     decoder_pipeline.init_request(id, content_type)
     while True:
-        rval = _redis.blpop("%s:%s:speech" % (_redis_namespace, id), TIMEOUT)
+        rval = _redis.blpop("%s:%s:speech" % (_redis_namespace, id), CHUNK_TIMEOUT)
         if rval:
             (key, data) = rval
             if data == "__EOS__":

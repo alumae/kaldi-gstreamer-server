@@ -5,6 +5,7 @@ Server usage
 ------------
 
 Using the server is very easy:
+
   * open the websocket 
   * send chunks of binary speech data to the websocket (either raw or encoded, see below); the chunks should be sent at least once per second, otherwise the server assumes the client is "sleeping" and closes the connection
   * read recognized words from websocket (sent on word-by-word basis), with a special word "<#s>" marking sentence break

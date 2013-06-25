@@ -59,10 +59,10 @@ class DecoderPipeline(object):
         logger.info('Created GStreamer elements')
           
         self.pipeline = Gst.Pipeline()
-        #for element in [self.filesrc, self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.tee, 
-        #                self.queue1, self.filesink, 
-        #                self.queue2, self.asr, self.appsink]:
-        for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.asr, self.fakesink]:
+        for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.tee, 
+                        self.queue1, self.filesink, 
+                        self.queue2, self.asr, self.fakesink]:
+        #for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.asr, self.fakesink]:
             logger.debug("Adding %s to the pipeline" % element)       
             self.pipeline.add(element) 
         
@@ -73,7 +73,13 @@ class DecoderPipeline(object):
         #self.appsrc.link(self.audioconvert)
         self.decodebin.connect('pad-added', self._connect_decoder)
         self.audioconvert.link(self.audioresample)
-        self.audioresample.link(self.asr)
+        self.audioresample.link(self.tee)
+        
+        self.tee.link(self.queue1)
+        self.queue1.link(self.filesink)
+        
+        self.tee.link(self.queue2)
+        self.queue2.link(self.asr)
         self.asr.link(self.fakesink)
         #self.appsrc.link(self.fakesink)
         
@@ -104,9 +110,15 @@ class DecoderPipeline(object):
         logger.error(self.error)
         
     def _on_eos(self, bus, msg):
-        logger.info('Pipeline received eos signal')
+        logger.info('Pipeline received eos signal')        
         #self.decodebin.unlink(self.audioconvert)
+        
+        if self.outdir:
+            self.filesink.set_state(Gst.State.NULL)
+            self.filesink.set_property('location', "/dev/null")
+            self.filesink.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.NULL)
+        
         if self.eos_handler:
             self.eos_handler[0](self.eos_handler[1])
         
@@ -120,14 +132,16 @@ class DecoderPipeline(object):
             caps = Gst.caps_from_string("")
             self.appsrc.set_property("caps", caps)
             pass
-        self.pipeline.set_state(Gst.State.READY)
+        #self.pipeline.set_state(Gst.State.READY)
         #self.appsrc.set_state(Gst.State.PAUSED)
                 
-        #self.pipeline.set_state(Gst.State.PAUSED)
-        #if self.outdir:
-        #    self.filesink.set_state(Gst.State.NULL)
-        #    self.filesink.set_property('location', "%s/%s.raw" % (self.outdir, id))
-        #self.filesrc.set_state(Gst.State.PLAYING)
+        
+        if self.outdir:
+            self.pipeline.set_state(Gst.State.PAUSED)
+            self.filesink.set_state(Gst.State.NULL)
+            self.filesink.set_property('location', "%s/%s.raw" % (self.outdir, id))
+            self.filesink.set_state(Gst.State.PLAYING)
+            
         #self.filesink.set_state(Gst.State.PLAYING)        
         #self.decodebin.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.PLAYING)        

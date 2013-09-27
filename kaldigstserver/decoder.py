@@ -21,20 +21,17 @@ from multiprocessing import Process, Pipe
 logger = logging.getLogger(__name__)
 
 class DecoderPipeline(object):
-    def __init__(self):
-        self.create_pipeline()
-        self.outdir = "tmp"
+    def __init__(self, conf = {}):
+        
+        self.create_pipeline(conf)
+        self.outdir = conf.get("outdir", None)
         self.recognizing = False
         self.word_handler = None
         self.eos_handler = None
         
-    def create_pipeline(self):
+    def create_pipeline(self, conf):
+        
         self.appsrc = Gst.ElementFactory.make("appsrc", "appsrc")
-        
-         
-        
-        caps = Gst.caps_from_string("audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
-        #self.appsrc.set_property("caps", caps)
         
         self.decodebin = Gst.ElementFactory.make("decodebin", "decodebin")
         self.audioconvert = Gst.ElementFactory.make("audioconvert", "audioconvert")
@@ -43,15 +40,13 @@ class DecoderPipeline(object):
         self.queue1 = Gst.ElementFactory.make("queue", "queue1")
         self.filesink = Gst.ElementFactory.make("filesink", "filesink")
         self.queue2 = Gst.ElementFactory.make("queue", "queue2")
-        self.asr = Gst.ElementFactory.make("onlinegmmfasterdecoder", "asr")
+        self.asr = Gst.ElementFactory.make("onlinegmmdecodefaster", "asr")
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
-
-        self.asr.set_property("fst", "tmp/models/tri2b_mmi/HCLG.fst")
-        self.asr.set_property("model", "tmp/models/tri2b_mmi/model")
-        self.asr.set_property("word-syms", "tmp/models/tri2b_mmi/words.txt")
-        self.asr.set_property("lda-mat", "tmp/models/tri2b_mmi/matrix")
-        self.asr.set_property("silence-phones", "6")
-        self.asr.set_property("acoustic-scale", 1.0/13)
+        
+        for (key, val) in conf.get("decoder", {}).iteritems():
+            logger.info("Setting decoder property: %s = %s" % (key, val))
+            self.asr.set_property(key, val)
+             
 
      
         self.filesink.set_property("location", "/dev/null")
@@ -89,7 +84,6 @@ class DecoderPipeline(object):
         self.bus.enable_sync_message_emission()
         self.bus.connect('message::eos', self._on_eos)
         self.bus.connect('message::error', self._on_error)
-        self.loop = GObject.MainLoop()
         self.asr.connect('hyp-word', self._on_word)
         #self.filesink.get_bus().connect('message::eos', self.on_eos)
         logger.info("Setting pipeline to READY")
@@ -181,40 +175,3 @@ class DecoderPipeline(object):
     
         
    
-if __name__ == '__main__':
-    finished = [False]
-    loop = GObject.MainLoop()
-    thread.start_new_thread(loop.run, ())
-            
-    logging.basicConfig(level=logging.INFO)
-    decoder_pipeline = DecoderPipeline()
-    
-    def word_printer(word):
-        print word
-        
-    def set_finished(finished):
-        finished[0] = True
-    
-    decoder_pipeline.set_word_handler(word_printer)
-    decoder_pipeline.set_eos_handler(set_finished, finished)
-    
-    def do_shit():
-        decoder_pipeline.init_request("test0", "audio/x-raw,rate=16000,channels=1,format=(string)S16LE")
-        f = open("test/data/test.raw", "rb")
-        for block in iter(lambda: f.read(2*16000), ""):
-            #time.sleep(1)
-            decoder_pipeline.process_data(block)
-        
-        decoder_pipeline.end_request()
-
-    do_shit()
-
-    while not finished[0]:
-        time.sleep(1)
-        print finished[0]
-    
-    finished[0] = False    
-    do_shit()
-    while not finished[0]:
-        time.sleep(1)
-        print finished[0]

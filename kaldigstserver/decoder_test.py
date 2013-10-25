@@ -88,15 +88,27 @@ class DecoderPipelineTests(unittest.TestCase):
         
         words = []
         finished[0] = False
-        decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
+        decoder_pipeline.init_request("test0", "audio/x-wav")
         # read and send everything
-        f = open("test/data/lause2.raw", "rb")
+        f = open("test/data/lause2.wav", "rb")
         decoder_pipeline.process_data(f.read(10*16000))
         decoder_pipeline.end_request()
         while not finished[0]:
             time.sleep(1)            
         self.assertItemsEqual(["see", "on", "teine", "lause", "<#s>"], words, "Recognition result")
 
+        words = []
+        finished[0] = False
+        decoder_pipeline.init_request("test0", "audio/ogg")
+        # read and send everything
+        f = open("test/data/test_2lauset.ogg", "rb")
+        decoder_pipeline.process_data(f.read(10*16000))
+
+        decoder_pipeline.end_request()
+        while not finished[0]:
+            time.sleep(1)
+        print words
+        self.assertItemsEqual("see on esimene lause <#s> see on teine lause <#s>".split(), words, "Recognition result")
 
 
 def main():

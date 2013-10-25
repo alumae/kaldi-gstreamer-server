@@ -4,6 +4,7 @@ import threading
 import sys
 import urllib
 import Queue
+import json
 
 class MyClient(WebSocketClient):
     def opened(self):
@@ -27,7 +28,8 @@ class MyClient(WebSocketClient):
 
     
     def received_message(self, m):
-        print "WORD: %s" % m
+        print "RESPONSE:", json.loads(str(m))
+        print "JSON was:", m
         
     
     def closed(self, code, reason=None):
@@ -48,7 +50,7 @@ if len(sys.argv) > 1:
 ws = MyClient('ws://localhost:8888/speech?%s' % (urllib.urlencode([("content-type", content_type)])), protocols=['http-only', 'chat'])
 ws.connect()
 # wait until socket is closed
-MINUTE = 60
+MINUTE = 2 * 60
 queue.get(timeout=MINUTE)
 
 

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class DecoderPipeline(object):
     def __init__(self, conf={}):
-
+        logger.info("Creating decoder using conf: %s" % conf)
         self.create_pipeline(conf)
         self.outdir = conf.get("outdir", None)
         self.recognizing = False
@@ -85,6 +85,7 @@ class DecoderPipeline(object):
     def _connect_decoder(self, element, pad):
         logger.info("Connecting audio decoder")
         pad.link(self.audioconvert.get_static_pad("sink"))
+        logger.info("Connected audio decoder")
 
     def _on_word(self, asr, word):
         logger.info("Got word: %s" % word)
@@ -137,10 +138,11 @@ class DecoderPipeline(object):
 
         logger.info('Pushing buffer of size %d to pipeline' % len(data))
         buf = Gst.Buffer.new_allocate(None, len(data), None)
+        # FIXME: find more efficient way to do this
         for (i, c) in enumerate(data):
             buf.memset(i, c, 1)
         self.appsrc.emit("push-buffer", buf)
-        #self.filesink.set_state(Gst.State.PLAYING) 
+        self.filesink.set_state(Gst.State.PLAYING)
 
         self.recognizing = True
 

@@ -19,7 +19,8 @@ class DecoderPipeline(object):
     def __init__(self, conf={}):
         logger.info("Creating decoder using conf: %s" % conf)
         self.create_pipeline(conf)
-        self.outdir = conf.get("outdir", None)
+        self.outdir = conf.get("out-dir", None)
+
         self.recognizing = False
         self.word_handler = None
         self.eos_handler = None

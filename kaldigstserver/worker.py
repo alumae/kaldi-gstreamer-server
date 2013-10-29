@@ -61,8 +61,7 @@ class RequestProcessor:
         self.last_decoder_message = time.time()
         event = dict(status=common.STATUS_EOS)
         _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
-        _redis.expire("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id),
-                      datetime.timedelta(seconds=EXPIRE_RESULTS))
+        _redis.expire("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), EXPIRE_RESULTS)
 
         self.finished = True
 

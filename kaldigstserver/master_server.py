@@ -109,8 +109,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             logging.info("%s: Using content type: %s" % (self.id, content_type))
             self.application._redis.set("%s:%s:content_type" % (self.application._redis_namespace, self.id),
                                         content_type)
-            self.application._redis.expire("%s:%s:content_type" % (self.application._redis_namespace, self.id),
-                                           datetime.timedelta(seconds=self.timeout))
+            self.application._redis.expire("%s:%s:content_type" % (self.application._redis_namespace, self.id), self.timeout)
         self.application._redis.rpush("%s:requests" % self.application._redis_namespace, self.id)
 
         t = threading.Thread(target=self._poll_for_words)

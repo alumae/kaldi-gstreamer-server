@@ -18,7 +18,7 @@ import json
 import redis
 
 from decoder import DecoderPipeline
-import master_server
+import common
 
 
 logger = logging.getLogger(__name__)
@@ -46,12 +46,12 @@ class RequestProcessor:
             if len(self.partial_transcript) > 0:
                 self.partial_transcript += " "
             self.partial_transcript += word
-            event = dict(status=master_server.STATUS_SUCCESS,
+            event = dict(status=common.STATUS_SUCCESS,
                          result=dict(hypotheses=[dict(transcript=self.partial_transcript)], final=False))
             _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
         else:
             final_transcript = self.post_process(self.partial_transcript)
-            event = dict(status=master_server.STATUS_SUCCESS,
+            event = dict(status=common.STATUS_SUCCESS,
                          result=dict(hypotheses=[dict(transcript=final_transcript)], final=True))
             _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
             self.partial_transcript = ""
@@ -59,7 +59,7 @@ class RequestProcessor:
 
     def _on_eos(self, data=None):
         self.last_decoder_message = time.time()
-        event = dict(status=master_server.STATUS_EOS)
+        event = dict(status=common.STATUS_EOS)
         _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
         _redis.expire("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id),
                       datetime.timedelta(seconds=EXPIRE_RESULTS))

@@ -30,20 +30,11 @@ from decoder import DecoderPipeline
 from Queue import Queue
 
 import settings
-
+import common
 
 #logging = logging.getlogging(__name__)
 
-STATUS_EOS = -1
-STATUS_SUCCESS = 0
-STATUS_NO_SPEECH = 1
-STATUS_ABORTED = 2
-STATUS_AUDIO_CAPTURE = 3
-STATUS_NETWORK = 4
-STATUS_NOT_ALLOWED = 5
-STATUS_SERVICE_NOT_ALLOWED = 6
-STATUS_BAD_GRAMMAR = 7
-STATUS_LANGUAGE_NOT_SUPPORTED = 8
+
 
 
 class Application(tornado.web.Application):
@@ -91,9 +82,9 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             if rval:
                 (key, event_json) = rval
                 event = json.loads(event_json)
-                if event["status"] == STATUS_SUCCESS:
+                if event["status"] == common.STATUS_SUCCESS:
                     self._send_event(event)
-                elif event["status"] == STATUS_EOS:
+                elif event["status"] == common.STATUS_EOS:
                     self._close()
                 else:
                     self._send_event(event)

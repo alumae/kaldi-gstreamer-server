@@ -91,7 +91,7 @@ class DecoderPipelineTests(unittest.TestCase):
         decoder_pipeline.init_request("test0", "audio/x-wav")
         # read and send everything
         f = open("test/data/lause2.wav", "rb")
-        decoder_pipeline.process_data(f.read(10*16000))
+        decoder_pipeline.process_data(f.read())
         decoder_pipeline.end_request()
         while not finished[0]:
             time.sleep(1)            

@@ -107,7 +107,6 @@ class DecoderPipelineTests(unittest.TestCase):
         decoder_pipeline.end_request()
         while not finished[0]:
             time.sleep(1)
-        print words
         self.assertItemsEqual("see on esimene lause <#s> see on teine lause <#s>".split(), words, "Recognition result")
 
 

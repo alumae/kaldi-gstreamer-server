@@ -6,6 +6,7 @@
 Reads speech data via websocket requests, sends it to Redis, waits for results from Redis and
 forwards to client via websocket
 """
+import sys
 import threading
 import time
 import logging
@@ -79,6 +80,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             logging.debug("%s: Polling redis for words" % self.id)
             rval = self.application._redis.blpop("%s:%s:speech_recognition_event" % (self.application._redis_namespace, self.id),
                                                  timeout=self.timeout)
+            logging.info("%s: Got event: %s" % (self.id, rval))
             if rval:
                 (key, event_json) = rval
                 event = json.loads(event_json)
@@ -98,6 +100,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def _clean_pending(self):
         logging.debug("%s: Cleaning pending speech data" % self.id)
         self.application._redis.delete("%s:%s:speech_recognition_event" % (self.application._redis_namespace, self.id))
+        self.application._redis.delete("%s:%s:speech" % (self.application._redis_namespace, self.id))
 
     def open(self):
         self.id = str(uuid.uuid4())
@@ -107,8 +110,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         content_type = self.get_argument("content-type", None, True)
         if content_type:
             logging.info("%s: Using content type: %s" % (self.id, content_type))
-            self.application._redis.set("%s:%s:content_type" % (self.application._redis_namespace, self.id),
-                                        content_type)
+            self.application._redis.set("%s:%s:content_type" % (self.application._redis_namespace, self.id), content_type)
             self.application._redis.expire("%s:%s:content_type" % (self.application._redis_namespace, self.id), self.timeout)
         self.application._redis.rpush("%s:requests" % self.application._redis_namespace, self.id)
 
@@ -129,6 +131,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             logging.debug("%s: Received %d bytes" % (self.id, len(message)))
             self.total_length += len(message)
             self.application._redis.rpush("%s:%s:speech" % (self.application._redis_namespace, self.id), message)
+        self.application._redis.expire("%s:%s:speech" % (self.application._redis_namespace, self.id), self.timeout)
 
 
 def main():

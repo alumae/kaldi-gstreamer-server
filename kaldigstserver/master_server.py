@@ -80,7 +80,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             logging.debug("%s: Polling redis for words" % self.id)
             rval = self.application._redis.blpop("%s:%s:speech_recognition_event" % (self.application._redis_namespace, self.id),
                                                  timeout=self.timeout)
-            logging.info("%s: Got event: %s" % (self.id, rval))
+            logging.debug("%s: Got event: %s" % (self.id, rval))
             if rval:
                 (key, event_json) = rval
                 event = json.loads(event_json)
@@ -88,9 +88,11 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
                     self._send_event(event)
                 elif event["status"] == common.STATUS_EOS:
                     self._close()
+                    return
                 else:
                     self._send_event(event)
                     self._close()
+                    return
             else:
                 logging.warning("%s: No words received in last %d seconds, giving up" % (self.id, self.timeout))
                 #TODO: send something 1st?

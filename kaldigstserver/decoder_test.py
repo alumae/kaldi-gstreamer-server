@@ -62,11 +62,12 @@ class DecoderPipelineTests(unittest.TestCase):
             
         self.assertItemsEqual(["see", "on", "teine", "lause", "<#s>"], words, "Recognition result")
         
-        # Now test cancelation
+        # Now test cancelation of a long submitted file
         words = []        
         decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
-        f = open("test/data/lause2.raw", "rb")
-        decoder_pipeline.process_data(f.read(2*16000))
+        f = open("test/data/etteytlus.raw", "rb")
+        decoder_pipeline.process_data(f.read())
+        time.sleep(3)
         decoder_pipeline.cancel()
         print "Pipeline cancelled"
         

@@ -66,10 +66,13 @@ class RequestProcessor:
         self.finished = True
 
     def post_process(self, text):
-        self.post_processor.stdin.write("%s\n" % text)
-        self.post_processor.stdin.flush()
-        text = self.post_processor.stdout.readline()
-        return text.strip()
+        if self.post_processor:
+            self.post_processor.stdin.write("%s\n" % text)
+            self.post_processor.stdin.flush()
+            text = self.post_processor.stdout.readline()
+            return text.strip()
+        else:
+            return text
 
     def run(self):
         self.decoder_pipeline.set_word_handler(self._on_word)

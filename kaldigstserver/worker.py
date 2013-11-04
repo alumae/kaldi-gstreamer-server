@@ -50,7 +50,9 @@ class RequestProcessor:
                          result=dict(hypotheses=[dict(transcript=self.partial_transcript)], final=False))
             _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
         else:
+            logger.info("Postprocessing final result..")
             final_transcript = self.post_process(self.partial_transcript)
+            logger.info("Postprocessing done.")
             event = dict(status=common.STATUS_SUCCESS,
                          result=dict(hypotheses=[dict(transcript=final_transcript)], final=True))
             _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))

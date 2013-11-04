@@ -49,8 +49,8 @@ class DecoderPipeline(object):
         self.appsrc.set_property("is-live", True)
         self.filesink.set_property("location", "/dev/null")
         self.cutter.set_property("leaky", False)
-        self.cutter.set_property("pre-length",   750 * 1000000)
-        self.cutter.set_property("run-length",   750 * 1000000)
+        self.cutter.set_property("pre-length",   1000 * 1000000)
+        self.cutter.set_property("run-length",   1000 * 1000000)
         #self.cutter.set_property("threshold", 0.05)
         logger.info('Created GStreamer elements')
 

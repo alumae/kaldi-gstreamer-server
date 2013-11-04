@@ -11,9 +11,11 @@ from gi.repository import GObject, Gst
 GObject.threads_init()
 Gst.init(None)
 import logging
+import thread
 
 logger = logging.getLogger(__name__)
 
+import pdb
 
 class DecoderPipeline(object):
     def __init__(self, conf={}):
@@ -36,6 +38,7 @@ class DecoderPipeline(object):
         self.queue1 = Gst.ElementFactory.make("queue", "queue1")
         self.filesink = Gst.ElementFactory.make("filesink", "filesink")
         self.queue2 = Gst.ElementFactory.make("queue", "queue2")
+        self.cutter = Gst.ElementFactory.make("cutter", "cutter")
         self.asr = Gst.ElementFactory.make("onlinegmmdecodefaster", "asr")
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
 
@@ -43,14 +46,16 @@ class DecoderPipeline(object):
             logger.info("Setting decoder property: %s = %s" % (key, val))
             self.asr.set_property(key, val)
 
+        self.appsrc.set_property("is-live", True)
         self.filesink.set_property("location", "/dev/null")
+        self.cutter.set_property("leaky", False)
 
         logger.info('Created GStreamer elements')
 
         self.pipeline = Gst.Pipeline()
         for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.tee,
                         self.queue1, self.filesink,
-                        self.queue2, self.asr, self.fakesink]:
+                        self.queue2, self.cutter, self.asr, self.fakesink]:
         #for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.asr, self.fakesink]:
             logger.debug("Adding %s to the pipeline" % element)
             self.pipeline.add(element)
@@ -60,7 +65,11 @@ class DecoderPipeline(object):
         self.appsrc.link(self.decodebin)
         #self.appsrc.link(self.audioconvert)
         self.decodebin.connect('pad-added', self._connect_decoder)
+        self.cutter.link(self.audioconvert)
         self.audioconvert.link(self.audioresample)
+        #self.audioconvert.link(self.cutter)
+        #self.cutter.link(self.audioresample)
+
         self.audioresample.link(self.tee)
 
         self.tee.link(self.queue1)
@@ -69,7 +78,6 @@ class DecoderPipeline(object):
         self.tee.link(self.queue2)
         self.queue2.link(self.asr)
         self.asr.link(self.fakesink)
-        #self.appsrc.link(self.fakesink)
 
         # Create bus and connect several handlers
         self.bus = self.pipeline.get_bus()
@@ -77,6 +85,9 @@ class DecoderPipeline(object):
         self.bus.enable_sync_message_emission()
         self.bus.connect('message::eos', self._on_eos)
         self.bus.connect('message::error', self._on_error)
+        #self.bus.connect('message::cutter', self._on_cutter)
+        self.bus.connect('message::element', self._on_element_message)
+        #self.bus.set_sync_handler(self._on_cutter)
         self.asr.connect('hyp-word', self._on_word)
         #self.filesink.get_bus().connect('message::eos', self.on_eos)
         logger.info("Setting pipeline to READY")
@@ -85,8 +96,17 @@ class DecoderPipeline(object):
 
     def _connect_decoder(self, element, pad):
         logger.info("Connecting audio decoder")
-        pad.link(self.audioconvert.get_static_pad("sink"))
+        pad.link(self.cutter.get_static_pad("sink"))
         logger.info("Connected audio decoder")
+
+    def _on_element_message(self, bus, message):
+        if message.has_name("cutter"):
+            if message.get_structure().get_value('above'):
+                logger.info("LEVEL ABOVE")
+                self.asr.set_property("silent", False)
+            else:
+                logger.info("LEVEL BELOW")
+                self.asr.set_property("silent", True)
 
     def _on_word(self, asr, word):
         logger.info("Got word: %s" % word)
@@ -132,6 +152,7 @@ class DecoderPipeline(object):
 
         #self.filesink.set_state(Gst.State.PLAYING)        
         #self.decodebin.set_state(Gst.State.PLAYING)
+        self.asr.set_property("silent", True)
         self.pipeline.set_state(Gst.State.PLAYING)
 
 

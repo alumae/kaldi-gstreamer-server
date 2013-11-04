@@ -49,7 +49,9 @@ class DecoderPipeline(object):
         self.appsrc.set_property("is-live", True)
         self.filesink.set_property("location", "/dev/null")
         self.cutter.set_property("leaky", False)
-
+        self.cutter.set_property("pre-length",   750 * 1000000)
+        self.cutter.set_property("run-length",   750 * 1000000)
+        #self.cutter.set_property("threshold", 0.05)
         logger.info('Created GStreamer elements')
 
         self.pipeline = Gst.Pipeline()
@@ -86,7 +88,13 @@ class DecoderPipeline(object):
         self.bus.connect('message::eos', self._on_eos)
         self.bus.connect('message::error', self._on_error)
         #self.bus.connect('message::cutter', self._on_cutter)
-        self.bus.connect('message::element', self._on_element_message)
+
+        cutter_type = 'sync'
+        if cutter_type == 'async':
+            self.bus.connect('message::element', self._on_element_message)
+        else:
+            #self.bus.set_sync_handler(self.bus.sync_signal_handler)
+            self.bus.connect('sync-message::element',  self._on_element_message)
         #self.bus.set_sync_handler(self._on_cutter)
         self.asr.connect('hyp-word', self._on_word)
         #self.filesink.get_bus().connect('message::eos', self.on_eos)

@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 '''
 Created on Jun 27, 2013
 
@@ -12,37 +14,62 @@ import time
 
 class DecoderPipelineTests(unittest.TestCase):
 
-    def testDecoder(self):
-        finished = [False]
-        loop = GObject.MainLoop()
-        thread.start_new_thread(loop.run, ())
-                
+    def __init__(self,  *args, **kwargs):
+        super(DecoderPipelineTests, self).__init__(*args, **kwargs)
         logging.basicConfig(level=logging.INFO)
         decoder_conf = {"model" : "test/models/estonian/tri2b_mmi_pruned/final.mdl",
                         "lda-mat" : "test/models/estonian/tri2b_mmi_pruned/final.mat",
                         "word-syms" : "test/models/estonian/tri2b_mmi_pruned/words.txt",
                         "fst" : "test/models/estonian/tri2b_mmi_pruned/HCLG.fst",
                         "silence-phones" : "6"}
-        
-        
-        decoder_pipeline = DecoderPipeline({"decoder" : decoder_conf})
-        
-        words = []
-        
-        def word_getter(word):
-            words.append(word)
-            
-        def set_finished(finished):
-            finished[0] = True
-        
-        decoder_pipeline.set_word_handler(word_getter)
-        decoder_pipeline.set_eos_handler(set_finished, finished)
-        
+        self.decoder_pipeline = DecoderPipeline({"decoder" : decoder_conf})
+        self.words = []
+        self.finished = False
+
+        self.decoder_pipeline.set_word_handler(self.word_getter)
+        self.decoder_pipeline.set_eos_handler(self.set_finished, self.finished)
+
+        loop = GObject.MainLoop()
+        thread.start_new_thread(loop.run, ())
+
+
+
+    def word_getter(self, word):
+        self.words.append(word)
+
+    def set_finished(self, finished):
+        self.finished = True
+
+    def setUp(self):
+        self.words = []
+        self.finished = False
+
+    def test12345678(self):
+        self.decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
+        f = open("test/data/1234-5678.raw", "rb")
+        for block in iter(lambda: f.read(8000), ""):
+            time.sleep(0.25)
+            self.decoder_pipeline.process_data(block)
+
+        self.decoder_pipeline.end_request()
+
+
+        while not self.finished:
+            time.sleep(1)
+        self.assertEqual(["üks", "kaks", "kolm", "neli", "<#s>", "viis", "kuus", "seitse", "kaheksa", "<#s>"], self.words)
+
+
+    def __testDecoder(self):
+        finished = [False]
+
+
+
+
         def do_shit():
             decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
-            f = open("test/data/lause2.raw", "rb")
-            for block in iter(lambda: f.read(2*16000), ""):
-                time.sleep(1)
+            f = open("test/data/1234-5678.raw", "rb")
+            for block in iter(lambda: f.read(8000), ""):
+                time.sleep(0.25)
                 decoder_pipeline.process_data(block)
             
             decoder_pipeline.end_request()
@@ -51,7 +78,7 @@ class DecoderPipelineTests(unittest.TestCase):
     
         while not finished[0]:
             time.sleep(1)
-        self.assertItemsEqual(["see", "on", "teine", "lause", "<#s>"], words, "Recognition result")
+        self.assertEqual(["üks", "kaks", "kolm", "neli", "<#s>", "viis", "kuus", "seitse", "kaheksa", "<#s>"], words)
         
         words = []
         

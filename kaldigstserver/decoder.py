@@ -20,12 +20,14 @@ import pdb
 class DecoderPipeline(object):
     def __init__(self, conf={}):
         logger.info("Creating decoder using conf: %s" % conf)
+        self.use_cutter = False
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
 
         self.recognizing = False
         self.word_handler = None
         self.eos_handler = None
+
 
     def create_pipeline(self, conf):
 
@@ -52,6 +54,8 @@ class DecoderPipeline(object):
         self.cutter.set_property("pre-length",   1000 * 1000000)
         self.cutter.set_property("run-length",   2000 * 1000000)
         #self.cutter.set_property("threshold", 0.05)
+        if self.use_cutter:
+            self.asr.set_property("silent", True)
         logger.info('Created GStreamer elements')
 
         self.pipeline = Gst.Pipeline()
@@ -67,18 +71,21 @@ class DecoderPipeline(object):
         self.appsrc.link(self.decodebin)
         #self.appsrc.link(self.audioconvert)
         self.decodebin.connect('pad-added', self._connect_decoder)
-        self.cutter.link(self.audioconvert)
+        if self.use_cutter:
+            self.cutter.link(self.audioconvert)
         self.audioconvert.link(self.audioresample)
-        #self.audioconvert.link(self.cutter)
-        #self.cutter.link(self.audioresample)
 
         self.audioresample.link(self.tee)
+        #self.audioresample.link(self.cutter)
+        #self.cutter.link(self.tee)
 
         self.tee.link(self.queue1)
         self.queue1.link(self.filesink)
 
         self.tee.link(self.queue2)
         self.queue2.link(self.asr)
+
+
         self.asr.link(self.fakesink)
 
         # Create bus and connect several handlers
@@ -95,16 +102,21 @@ class DecoderPipeline(object):
         else:
             #self.bus.set_sync_handler(self.bus.sync_signal_handler)
             self.bus.connect('sync-message::element',  self._on_element_message)
-        #self.bus.set_sync_handler(self._on_cutter)
         self.asr.connect('hyp-word', self._on_word)
-        #self.filesink.get_bus().connect('message::eos', self.on_eos)
         logger.info("Setting pipeline to READY")
         self.pipeline.set_state(Gst.State.READY)
         logger.info("Set pipeline to READY")
 
     def _connect_decoder(self, element, pad):
         logger.info("Connecting audio decoder")
-        pad.link(self.cutter.get_static_pad("sink"))
+        #self.cutter.unlink(self.tee)
+        #self.cutter.link(self.tee)
+
+        if self.use_cutter:
+            pad.link(self.cutter.get_static_pad("sink"))
+        else:
+            pad.link(self.audioconvert.get_static_pad("sink"))
+
         logger.info("Connected audio decoder")
 
     def _on_element_message(self, bus, message):
@@ -147,11 +159,9 @@ class DecoderPipeline(object):
         else:
             caps = Gst.caps_from_string("")
             self.appsrc.set_property("caps", caps)
-            pass
             #self.pipeline.set_state(Gst.State.READY)
         #self.appsrc.set_state(Gst.State.PAUSED)
 
-        self.asr.set_property("silent", False)
         if self.outdir:
             self.pipeline.set_state(Gst.State.PAUSED)
             self.filesink.set_state(Gst.State.NULL)
@@ -160,7 +170,6 @@ class DecoderPipeline(object):
 
         #self.filesink.set_state(Gst.State.PLAYING)        
         #self.decodebin.set_state(Gst.State.PLAYING)
-        self.asr.set_property("silent", True)
         self.pipeline.set_state(Gst.State.PLAYING)
 
 
@@ -188,10 +197,11 @@ class DecoderPipeline(object):
     def set_eos_handler(self, handler, user_data=None):
         self.eos_handler = (handler, user_data)
 
+
     def cancel(self):
         logger.info("Cancelling pipeline")
         self.pipeline.send_event(Gst.Event.new_eos())
-        self.asr.set_property("silent", True)
+        #self.asr.set_property("silent", True)
         self.pipeline.set_state(Gst.State.NULL)
 
         #if (self.pipeline.get_state() == Gst.State.PLAYING):

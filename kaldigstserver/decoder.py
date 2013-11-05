@@ -62,7 +62,6 @@ class DecoderPipeline(object):
         for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.tee,
                         self.queue1, self.filesink,
                         self.queue2, self.cutter, self.asr, self.fakesink]:
-        #for element in [self.appsrc, self.decodebin, self.audioconvert, self.audioresample, self.asr, self.fakesink]:
             logger.debug("Adding %s to the pipeline" % element)
             self.pipeline.add(element)
 
@@ -73,6 +72,7 @@ class DecoderPipeline(object):
         self.decodebin.connect('pad-added', self._connect_decoder)
         if self.use_cutter:
             self.cutter.link(self.audioconvert)
+
         self.audioconvert.link(self.audioresample)
 
         self.audioresample.link(self.tee)
@@ -109,9 +109,6 @@ class DecoderPipeline(object):
 
     def _connect_decoder(self, element, pad):
         logger.info("Connecting audio decoder")
-        #self.cutter.unlink(self.tee)
-        #self.cutter.link(self.tee)
-
         if self.use_cutter:
             pad.link(self.cutter.get_static_pad("sink"))
         else:

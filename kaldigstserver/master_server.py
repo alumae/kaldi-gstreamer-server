@@ -43,6 +43,7 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", MainHandler),
             (r"/speech", DecoderSocketHandler),
+            (r"/status", ServerStatusSocketHandler),
         ]
         settings = dict(
             cookie_secret="43oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
@@ -60,6 +61,11 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("../../README.md")
 
+
+
+class ServerStatusSocketHandler(tornado.websocket.WebSocketHandler):
+    def open(self):
+        pass
 
 class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def _send_word(self, word):

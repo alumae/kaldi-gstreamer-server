@@ -142,6 +142,7 @@ if __name__ == '__main__':
     thread.start_new_thread(loop.run, ())
     while True:
         logger.info("Waiting for request to handle")
+
         (key, request_id) = _redis.blpop("%s:requests" % _redis_namespace)
         logger.info("Starting to process request %s" % request_id)
         processor = RequestProcessor(request_id=request_id, decoder_pipeline=decoder_pipeline,

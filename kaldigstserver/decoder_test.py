@@ -49,6 +49,19 @@ class DecoderPipelineTests(unittest.TestCase):
 
 
 
+    def testCancelAfterEOS(self):
+        self.decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
+        f = open("test/data/1234-5678.raw", "rb")
+        for block in iter(lambda: f.read(8000), ""):
+            time.sleep(0.25)
+            self.decoder_pipeline.process_data(block)
+
+        self.decoder_pipeline.end_request()
+        self.decoder_pipeline.cancel()
+
+        #self.assertEqual(["üks", "kaks", "kolm", "neli", "<#s>", "viis", "kuus", "seitse", "kaheksa", "<#s>"], self.words)
+
+
     def test12345678(self):
         self.decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
         f = open("test/data/1234-5678.raw", "rb")

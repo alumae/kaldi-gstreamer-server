@@ -26,25 +26,13 @@ import redis
 
 from tornado.options import define, options
 
-from decoder import DecoderPipeline
-
-from Queue import Queue
 
 import settings
 import common
 
-#logging = logging.getlogging(__name__)
-
-
-
 
 class Application(tornado.web.Application):
     def __init__(self):
-        handlers = [
-            (r"/", MainHandler),
-            (r"/speech", DecoderSocketHandler),
-            (r"/status", ServerStatusSocketHandler),
-        ]
         settings = dict(
             cookie_secret="43oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
@@ -52,94 +40,116 @@ class Application(tornado.web.Application):
             xsrf_cookies=True,
             autoescape=None,
         )
+
+        handlers = [
+            (r"/", MainHandler),
+            (r"/client/speech", DecoderSocketHandler),
+            (r"/client/status", StatusSocketHandler),
+            (r"/worker", WorkerSocketHandler),
+            (r"/client/static/(.*)", tornado.web.StaticFileHandler, {'path': "static"}),
+        ]
         tornado.web.Application.__init__(self, handlers, **settings)
         self._redis = redis.Redis()
         self._redis_namespace = options.namespace
+        self.available_workers = set()
+        self.status_listeners = set()
+        self.num_requests_processed = 0
+
+    def send_status_update_single(self, ws):
+        status = dict(num_workers_available=len(self.available_workers), num_requests_processed=self.num_requests_processed)
+        ws.write_message(json.dumps(status))
+
+    def send_status_update(self):
+        for ws in self.status_listeners:
+            self.send_status_update_single(ws)
+
 
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("../../README.md")
 
-
-
-class ServerStatusSocketHandler(tornado.websocket.WebSocketHandler):
+class StatusSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
-        pass
+        logging.info("New status listener")
+        self.application.status_listeners.add(self)
+        self.application.send_status_update_single(self)
+
+    def on_close(self):
+        logging.info("Status listener left")
+        self.application.status_listeners.remove(self)
+
+
+
+
+class WorkerSocketHandler(tornado.websocket.WebSocketHandler):
+    def __init__(self, application, request, **kwargs):
+        tornado.websocket.WebSocketHandler.__init__(self, application, request, **kwargs)
+        self.client_socket = None
+
+    def open(self):
+        self.client_socket = None
+        self.application.available_workers.add(self)
+        logging.info("New worker available " + self.__str__())
+        self.application.send_status_update()
+
+    def on_close(self):
+        logging.info("Worker " + self.__str__() + " leaving")
+        self.application.available_workers.discard(self)
+        if self.client_socket:
+            self.client_socket.close()
+        self.application.send_status_update()
+
+    def on_message(self, message):
+        assert self.client_socket is not None
+        event = json.loads(message)
+        self.client_socket.send_event(event)
+
+    def set_client_socket(self, client_socket):
+        self.client_socket = client_socket
+
+
 
 class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
-    def _send_word(self, word):
-        logging.info("%s: Sending word %s to client" % (self.id, word))
-        self.write_message(word)
 
-    def _close(self):
-        logging.info("%s: Closing client connection" % self.id)
-        self.close()
-
-    def _send_event(self, event):
+    def send_event(self, event):
         logging.info("%s: Sending event %s to client" % (self.id, event))
         self.write_message(json.dumps(event))
 
-    def _poll_for_words(self):
-
-        while True:
-            logging.debug("%s: Polling redis for words" % self.id)
-            rval = self.application._redis.blpop("%s:%s:speech_recognition_event" % (self.application._redis_namespace, self.id),
-                                                 timeout=self.timeout)
-            logging.debug("%s: Got event: %s" % (self.id, rval))
-            if rval:
-                (key, event_json) = rval
-                event = json.loads(event_json)
-                if event["status"] == common.STATUS_SUCCESS:
-                    self._send_event(event)
-                elif event["status"] == common.STATUS_EOS:
-                    self._close()
-                    return
-                else:
-                    self._send_event(event)
-                    self._close()
-                    return
-            else:
-                logging.warning("%s: No words received in last %d seconds, giving up" % (self.id, self.timeout))
-                #TODO: send something 1st?
-                self._close()
-                return
-
-    def _clean_pending(self):
-        logging.debug("%s: Cleaning pending speech data" % self.id)
-        self.application._redis.delete("%s:%s:speech_recognition_event" % (self.application._redis_namespace, self.id))
-        self.application._redis.delete("%s:%s:speech" % (self.application._redis_namespace, self.id))
-
     def open(self):
         self.id = str(uuid.uuid4())
-        self.total_length = 0
-        self.timeout = 10
         logging.info("%s: OPEN" % self.id)
-        content_type = self.get_argument("content-type", None, True)
-        if content_type:
-            logging.info("%s: Using content type: %s" % (self.id, content_type))
-            self.application._redis.set("%s:%s:content_type" % (self.application._redis_namespace, self.id), content_type)
-            self.application._redis.expire("%s:%s:content_type" % (self.application._redis_namespace, self.id), self.timeout)
-        self.application._redis.rpush("%s:requests" % self.application._redis_namespace, self.id)
+        self.worker = None
+        try:
+            self.worker = self.application.available_workers.pop()
+            self.application.send_status_update()
+            logging.info("%s: Using worker %s" % (self.id, self.__str__()))
+            self.worker.set_client_socket(self)
 
-        t = threading.Thread(target=self._poll_for_words)
-        t.daemon = True
-        t.start()
-        logging.info("%s: Opened connection" % self.id)
+            content_type = self.get_argument("content-type", None, True)
+            if content_type:
+                logging.info("%s: Using content type: %s" % (self.id, content_type))
+            self.worker.write_message(json.dumps(dict(id=self.id, content_type=content_type)))
+        except KeyError:
+            logging.warn("%s: No worker available for client request" % self.id)
+            event = dict(status=common.STATUS_NOT_AVAILABLE, message="No decoder available, try again later")
+            self.send_event(event)
+            self.close()
 
-    def on_close(self):
-        logging.info("%s: Handling on_close()" % self.id)
-        self._clean_pending()
+    def on_connection_close(self):
+        logging.info("%s: Handling on_connection_close()" % self.id)
+        self.application.num_requests_processed += 1
+        if self.worker:
+            try:
+                self.worker.set_client_socket(None)
+                self.worker.close()
+            except:
+                pass
 
     def on_message(self, message):
-        if message == "EOS":
-            logging.debug("%s: EOS from client after %d bytes" % (self.id, self.total_length))
-            self.application._redis.rpush("%s:%s:speech" % (self.application._redis_namespace, self.id), "__EOS__")
-        else:
-            logging.debug("%s: Received %d bytes" % (self.id, len(message)))
-            self.total_length += len(message)
-            self.application._redis.rpush("%s:%s:speech" % (self.application._redis_namespace, self.id), message)
-        self.application._redis.expire("%s:%s:speech" % (self.application._redis_namespace, self.id), self.timeout)
+        assert self.worker is not None
+        logging.info("%s: Forwarding client message of length %d to worker" % (self.id, len(message)))
+        self.worker.write_message(message, binary=True)
 
 
 def main():

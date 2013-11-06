@@ -199,9 +199,10 @@ class DecoderPipeline(object):
         logger.info("Cancelling pipeline")
         self.pipeline.send_event(Gst.Event.new_eos())
         #self.asr.set_property("silent", True)
-        self.pipeline.set_state(Gst.State.NULL)
+        #self.pipeline.set_state(Gst.State.NULL)
 
         #if (self.pipeline.get_state() == Gst.State.PLAYING):
         #logger.debug("Sending EOS to pipeline")
         #self.pipeline.send_event(Gst.Event.new_eos())
         #self.pipeline.set_state(Gst.State.READY)
+        logger.info("Cancelled pipeline")

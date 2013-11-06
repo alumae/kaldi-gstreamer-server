@@ -1,24 +1,26 @@
-'''
-Created on Jun 6, 2013
+from gevent.hub import sleep
 
-@author: tanel
+__author__ = 'tanel'
 
-Worker process: reads speech data from Redis, forwards to decoder, reads results from decoder, puts to Redis 
-'''
+
 import logging
 import time
 import thread
+import threading
 import argparse
 import datetime
 from subprocess import Popen, PIPE
 from gi.repository import GObject, Gst
 import yaml
 import json
-
+import signal
 import redis
+
+from ws4py.client.threadedclient import WebSocketClient
 
 from decoder import DecoderPipeline
 import common
+
 
 
 logger = logging.getLogger(__name__)
@@ -29,16 +31,71 @@ _redis_namespace = "speech_dev"
 CHUNK_TIMEOUT = 10
 TIMEOUT_DECODER = 5
 EXPIRE_RESULTS = 10
+CONNECT_TIMEOUT = 5
 
+class ServerWebsocket(WebSocketClient):
 
-class RequestProcessor:
-    def __init__(self, request_id, decoder_pipeline, post_processor=None):
-        self.request_id = request_id
+    STATE_CREATED = 0
+    STATE_CONNECTED = 1
+    STATE_INITIALIZED = 2
+    STATE_PROCESSING = 3
+    STATE_EOS_RECEIVED = 7
+    STATE_CANCELLING = 8
+    STATE_FINISHED = 100
+
+    def __init__(self, uri,  decoder_pipeline, post_processor):
+        self.uri = uri
         self.decoder_pipeline = decoder_pipeline
         self.post_processor = post_processor
-        self.last_decoder_message = time.time()
+        WebSocketClient.__init__(self, url=uri)
+        self.pipeline_initialized = False
         self.partial_transcript = ""
-        self.finished = False
+        self.decoder_pipeline.set_word_handler(self._on_word)
+        self.decoder_pipeline.set_eos_handler(self._on_eos)
+        self.state = self.__class__.STATE_CREATED
+        self.last_decoder_message = time.time()
+
+    def opened(self):
+        logging.info("Opened websocket connection to server")
+        self.state = self.__class__.STATE_CONNECTED
+
+    def guard_timeout(self):
+        while self.state != self.__class__.STATE_FINISHED:
+            if time.time() - self.last_decoder_message > TIMEOUT_DECODER:
+                logger.warning("More than %d seconds from last decoder activity, cancelling" % TIMEOUT_DECODER)
+                self.state = self.__class__.STATE_CANCELLING
+                self.decoder_pipeline.cancel()
+                event = dict(status=common.STATUS_NO_SPEECH)
+                self.send(json.dumps(event))
+                #self.close()
+            logger.info("Waiting for decoder end")
+            time.sleep(1)
+
+
+    def received_message(self, m):
+        logging.info("Got message from server of type " + str(type(m)))
+        if self.state == self.__class__.STATE_CONNECTED:
+            props = json.loads(str(m))
+            content_type = props['content_type']
+            request_id = props['id']
+            self.decoder_pipeline.init_request(request_id, content_type)
+            self.last_decoder_message = time.time()
+            thread.start_new_thread(self.guard_timeout, ())
+            logger.info("Started timeout guard")
+            logger.info("Initialized request %s" % request_id)
+            self.state = self.__class__.STATE_INITIALIZED
+        elif m.data == "EOS":
+            if self.state != self.__class__.STATE_CANCELLING:
+                self.decoder_pipeline.end_request()
+                self.state = self.__class__.STATE_EOS_RECEIVED
+        else:
+            if self.state != self.__class__.STATE_CANCELLING:
+                self.decoder_pipeline.process_data(m.data)
+
+
+    def closed(self, code, reason=None):
+        logging.info("Websocket closed() called")
+        self.state = self.__class__.STATE_FINISHED
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -48,24 +105,21 @@ class RequestProcessor:
             self.partial_transcript += word
             event = dict(status=common.STATUS_SUCCESS,
                          result=dict(hypotheses=[dict(transcript=self.partial_transcript)], final=False))
-            _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
+            self.send(json.dumps(event))
         else:
             logger.info("Postprocessing final result..")
             final_transcript = self.post_process(self.partial_transcript)
             logger.info("Postprocessing done.")
             event = dict(status=common.STATUS_SUCCESS,
                          result=dict(hypotheses=[dict(transcript=final_transcript)], final=True))
-            _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
+            self.send(json.dumps(event))
             self.partial_transcript = ""
+
 
 
     def _on_eos(self, data=None):
         self.last_decoder_message = time.time()
-        event = dict(status=common.STATUS_EOS)
-        _redis.rpush("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), json.dumps(event))
-        _redis.expire("%s:%s:speech_recognition_event" % (_redis_namespace, self.request_id), EXPIRE_RESULTS)
-
-        self.finished = True
+        self.close()
 
     def post_process(self, text):
         if self.post_processor:
@@ -76,44 +130,13 @@ class RequestProcessor:
         else:
             return text
 
-    def run(self):
-        self.decoder_pipeline.set_word_handler(self._on_word)
-        self.decoder_pipeline.set_eos_handler(self._on_eos)
-        content_type = _redis.get("%s:%s:content_type" % (_redis_namespace, self.request_id))
-        logger.info("Using content type %s" % content_type)
-
-        self.decoder_pipeline.init_request(self.request_id, content_type)
-        while True:
-            rval = _redis.blpop("%s:%s:speech" % (_redis_namespace, self.request_id), CHUNK_TIMEOUT)
-            if rval:
-                (key, data) = rval
-                if data == "__EOS__":
-                    self.decoder_pipeline.end_request()
-                    break
-                else:
-                    self.decoder_pipeline.process_data(data)
-            else:
-                logging.info("Timeout occurred for %s. Stopping processing." % self.request_id)
-                self._on_eos()
-                self.decoder_pipeline.cancel()
-                return
-
-        while not self.finished:
-            if time.time() - self.last_decoder_message > TIMEOUT_DECODER:
-                logger.warning("More than %d seconds from last decoder activity, cancelling" % TIMEOUT_DECODER)
-                decoder_pipeline.cancel()
-                self._on_eos()
-                return
-            logger.info("Waiting for decoder end")
-            time.sleep(1)
 
 
-if __name__ == '__main__':
+def main():
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
+    logging.debug('Starting up worker')
     parser = argparse.ArgumentParser(description='Worker for kaldigstserver')
-    parser.add_argument('-n', '--namespace', default="speech_dev", dest="namespace")
-    parser.add_argument('-s', '--host', default="localhost", dest="host")
-    parser.add_argument('-p', '--port', default=6379, dest="port", type=int)
+    parser.add_argument('-u', '--uri', default="ws://localhost:8889/worker", dest="uri", help="Server<-->worker websocket URI")
     parser.add_argument('-f', '--fork', default=1, dest="fork", type=int)
     parser.add_argument('-c', '--conf', dest="conf", help="YAML file with decoder configuration")
     args = parser.parse_args()
@@ -123,9 +146,6 @@ if __name__ == '__main__':
 
         logging.info("Forking into %d processes" % args.fork)
         tornado.process.fork_processes(args.fork)
-
-    _redis_namespace = args.namespace
-    _redis = redis.Redis(host=args.host, port=args.port)
 
     conf = {}
     if args.conf:
@@ -137,16 +157,20 @@ if __name__ == '__main__':
     if "post-processor" in conf:
         post_processor = Popen(conf["post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
 
-    logger.debug("Using namespace %s" % _redis_namespace)
     loop = GObject.MainLoop()
     thread.start_new_thread(loop.run, ())
     while True:
-        logger.info("Waiting for request to handle")
+        ws = ServerWebsocket(args.uri, decoder_pipeline, post_processor)
+        try:
+            ws.connect()
+            ws.run_forever()
+        except Exception:
+            logger.error("Couldn't connect to server, waiting for %d seconds", CONNECT_TIMEOUT)
+            sleep(CONNECT_TIMEOUT)
 
-        (key, request_id) = _redis.blpop("%s:requests" % _redis_namespace)
-        logger.info("Starting to process request %s" % request_id)
-        processor = RequestProcessor(request_id=request_id, decoder_pipeline=decoder_pipeline,
-                                     post_processor=post_processor)
-        processor.run()
 
-    
+
+
+if __name__ == "__main__":
+    main()
+

@@ -34,8 +34,8 @@ class MyClient(WebSocketClient):
     
     def closed(self, code, reason=None):
         print "Websocket closed() called"
-        # notify main thread
-        queue.put(1)
+
+
         
 
 queue = Queue.Queue()

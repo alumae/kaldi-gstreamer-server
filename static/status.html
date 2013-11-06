@@ -5,7 +5,7 @@
   </head>
   <body>
 <script type="text/javascript">
-var ws_status_uri = window.location.href.replace(/^https?:\/\/(.*)\/static\/status.html$/, 'ws://$1/status');
+var ws_status_uri = window.location.href.replace(/^https?:\/\/(.*)\/static\/status.html$/, 'ws://$1/ws/status');
 
 var ws = new WebSocket(ws_status_uri);
 ws.onmessage = function(evt) {

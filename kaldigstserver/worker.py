@@ -1,5 +1,3 @@
-from gevent.hub import sleep
-
 __author__ = 'tanel'
 
 
@@ -166,7 +164,7 @@ def main():
             ws.run_forever()
         except Exception:
             logger.error("Couldn't connect to server, waiting for %d seconds", CONNECT_TIMEOUT)
-            sleep(CONNECT_TIMEOUT)
+            time.sleep(CONNECT_TIMEOUT)
 
 
 

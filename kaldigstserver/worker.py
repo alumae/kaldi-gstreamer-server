@@ -50,18 +50,18 @@ class ServerWebsocket(WebSocketClient):
         self.partial_transcript = ""
         self.decoder_pipeline.set_word_handler(self._on_word)
         self.decoder_pipeline.set_eos_handler(self._on_eos)
-        self.state = self.__class__.STATE_CREATED
+        self.state = self.STATE_CREATED
         self.last_decoder_message = time.time()
 
     def opened(self):
         logging.info("Opened websocket connection to server")
-        self.state = self.__class__.STATE_CONNECTED
+        self.state = self.STATE_CONNECTED
 
     def guard_timeout(self):
-        while self.state != self.__class__.STATE_FINISHED:
+        while self.state in [self.STATE_CONNECTED, self.STATE_INITIALIZED, self.STATE_PROCESSING]:
             if time.time() - self.last_decoder_message > TIMEOUT_DECODER:
                 logger.warning("More than %d seconds from last decoder activity, cancelling" % TIMEOUT_DECODER)
-                self.state = self.__class__.STATE_CANCELLING
+                self.state = self.STATE_CANCELLING
                 self.decoder_pipeline.cancel()
                 event = dict(status=common.STATUS_NO_SPEECH)
                 self.send(json.dumps(event))
@@ -81,19 +81,28 @@ class ServerWebsocket(WebSocketClient):
             thread.start_new_thread(self.guard_timeout, ())
             logger.info("Started timeout guard")
             logger.info("Initialized request %s" % request_id)
-            self.state = self.__class__.STATE_INITIALIZED
+            self.state = self.STATE_INITIALIZED
         elif m.data == "EOS":
-            if self.state != self.__class__.STATE_CANCELLING:
+            if self.state != self.STATE_CANCELLING:
                 self.decoder_pipeline.end_request()
-                self.state = self.__class__.STATE_EOS_RECEIVED
+                self.state = self.STATE_EOS_RECEIVED
         else:
-            if self.state != self.__class__.STATE_CANCELLING:
+            if self.state != self.STATE_CANCELLING:
                 self.decoder_pipeline.process_data(m.data)
 
 
     def closed(self, code, reason=None):
         logging.info("Websocket closed() called")
-        self.state = self.__class__.STATE_FINISHED
+        if self.state != self.STATE_FINISHED:
+            logger.info("Master disconnected before decoder reached EOS?")
+            self.state = self.STATE_CANCELLING
+            self.decoder_pipeline.cancel()
+            while self.state == self.STATE_CANCELLING:
+                logger.info("Waiting for decoder EOS")
+                time.sleep(1)
+            logger.info("EOS received, we can close now")
+
+
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -117,6 +126,7 @@ class ServerWebsocket(WebSocketClient):
 
     def _on_eos(self, data=None):
         self.last_decoder_message = time.time()
+        self.state = self.STATE_FINISHED
         self.close()
 
     def post_process(self, text):
@@ -160,6 +170,7 @@ def main():
     while True:
         ws = ServerWebsocket(args.uri, decoder_pipeline, post_processor)
         try:
+            logger.info("Opening websocket connection to master server")
             ws.connect()
             ws.run_forever()
         except Exception:

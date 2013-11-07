@@ -27,6 +27,7 @@ class DecoderPipeline(object):
         self.recognizing = False
         self.word_handler = None
         self.eos_handler = None
+        self.request_id = "<undefined>"
 
 
     def create_pipeline(self, conf):
@@ -108,13 +109,13 @@ class DecoderPipeline(object):
         logger.info("Set pipeline to READY")
 
     def _connect_decoder(self, element, pad):
-        logger.info("Connecting audio decoder")
+        logger.info("%s: Connecting audio decoder" % self.request_id)
         if self.use_cutter:
             pad.link(self.cutter.get_static_pad("sink"))
         else:
             pad.link(self.audioconvert.get_static_pad("sink"))
 
-        logger.info("Connected audio decoder")
+        logger.info("%s: Connected audio decoder" % self.request_id)
 
     def _on_element_message(self, bus, message):
         if message.has_name("cutter"):
@@ -126,7 +127,7 @@ class DecoderPipeline(object):
                 self.asr.set_property("silent", True)
 
     def _on_word(self, asr, word):
-        logger.info("Got word: %s" % word)
+        logger.info("%s: Got word: %s" % (self.request_id, word))
         if self.word_handler:
             self.word_handler(word)
 
@@ -135,7 +136,7 @@ class DecoderPipeline(object):
         logger.error(self.error)
 
     def _on_eos(self, bus, msg):
-        logger.info('Pipeline received eos signal')
+        logger.info('%s: Pipeline received eos signal' % self.request_id)
         #self.decodebin.unlink(self.audioconvert)
 
         if self.outdir:
@@ -146,11 +147,13 @@ class DecoderPipeline(object):
 
         if self.eos_handler:
             self.eos_handler[0](self.eos_handler[1])
+        self.request_id = "<undefined>"
 
 
     def init_request(self, id, caps_str):
+        self.request_id = id
         if caps_str and len(caps_str) > 0:
-            logger.info("Setting caps to %s" % caps_str)
+            logger.info("%s: Setting caps to %s" % (self.request_id, caps_str))
             caps = Gst.caps_from_string(caps_str)
             self.appsrc.set_property("caps", caps)
         else:
@@ -172,7 +175,7 @@ class DecoderPipeline(object):
 
     def process_data(self, data):
 
-        logger.info('Pushing buffer of size %d to pipeline' % len(data))
+        logger.debug('%s: Pushing buffer of size %d to pipeline' % (self.request_id, len(data)))
         buf = Gst.Buffer.new_allocate(None, len(data), None)
         # FIXME: find more efficient way to do this
         for (i, c) in enumerate(data):
@@ -184,7 +187,7 @@ class DecoderPipeline(object):
 
 
     def end_request(self):
-        logger.info("Pushing EOS to pipeline")
+        logger.info("%s: Pushing EOS to pipeline" % self.request_id)
         self.pipeline.send_event(Gst.Event.new_eos())
 
 
@@ -196,7 +199,7 @@ class DecoderPipeline(object):
 
 
     def cancel(self):
-        logger.info("Cancelling pipeline")
+        logger.info("%s: Cancelling pipeline" % self.request_id)
         self.pipeline.send_event(Gst.Event.new_eos())
         #self.asr.set_property("silent", True)
         #self.pipeline.set_state(Gst.State.NULL)
@@ -205,4 +208,4 @@ class DecoderPipeline(object):
         #logger.debug("Sending EOS to pipeline")
         #self.pipeline.send_event(Gst.Event.new_eos())
         #self.pipeline.set_state(Gst.State.READY)
-        logger.info("Cancelled pipeline")
+        logger.info("%s: Cancelled pipeline" % self.request_id)

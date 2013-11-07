@@ -22,10 +22,8 @@ import tornado.gen
 
 import os.path
 import uuid
-import redis
 
 from tornado.options import define, options
-
 
 import settings
 import common
@@ -49,8 +47,6 @@ class Application(tornado.web.Application):
             (r"/client/static/(.*)", tornado.web.StaticFileHandler, {'path': "static"}),
         ]
         tornado.web.Application.__init__(self, handlers, **settings)
-        self._redis = redis.Redis()
-        self._redis_namespace = options.namespace
         self.available_workers = set()
         self.status_listeners = set()
         self.num_requests_processed = 0
@@ -64,10 +60,10 @@ class Application(tornado.web.Application):
             self.send_status_update_single(ws)
 
 
-
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("../../README.md")
+
 
 class StatusSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
@@ -78,8 +74,6 @@ class StatusSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         logging.info("Status listener left")
         self.application.status_listeners.remove(self)
-
-
 
 
 class WorkerSocketHandler(tornado.websocket.WebSocketHandler):
@@ -109,9 +103,7 @@ class WorkerSocketHandler(tornado.websocket.WebSocketHandler):
         self.client_socket = client_socket
 
 
-
 class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
-
     def send_event(self, event):
         logging.info("%s: Sending event %s to client" % (self.id, event))
         self.write_message(json.dumps(event))
@@ -166,5 +158,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    

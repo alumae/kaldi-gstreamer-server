@@ -44,7 +44,7 @@ class Application(tornado.web.Application):
             (r"/client/ws/speech", DecoderSocketHandler),
             (r"/client/ws/status", StatusSocketHandler),
             (r"/worker/ws/speech", WorkerSocketHandler),
-            (r"/client/static/(.*)", tornado.web.StaticFileHandler, {'path': "static"}),
+            (r"/client/static/(.*)", tornado.web.StaticFileHandler, {'path': settings["static_path"]}),
         ]
         tornado.web.Application.__init__(self, handlers, **settings)
         self.available_workers = set()

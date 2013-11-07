@@ -139,6 +139,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def on_connection_close(self):
         logging.info("%s: Handling on_connection_close()" % self.id)
         self.application.num_requests_processed += 1
+        self.application.send_status_update()
         if self.worker:
             try:
                 self.worker.set_client_socket(None)

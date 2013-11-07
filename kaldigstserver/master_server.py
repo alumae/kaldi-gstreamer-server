@@ -12,6 +12,8 @@ import time
 import logging
 import datetime
 import json
+import codecs
+import locale
 
 import tornado.escape
 import tornado.ioloop
@@ -105,7 +107,7 @@ class WorkerSocketHandler(tornado.websocket.WebSocketHandler):
 
 class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def send_event(self, event):
-        logging.info("%s: Sending event %s to client" % (self.id, event))
+        logging.info("%s: Sending event %s to client" % (self.id, str(event)))
         self.write_message(json.dumps(event))
 
     def open(self):
@@ -146,6 +148,11 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 def main():
+    encoding = locale.getdefaultlocale()[1]
+    print >> sys.stderr, "Using", encoding, "for input and output"
+    sys.stdout = codecs.getwriter(encoding)(sys.stdout);
+    sys.stdin = codecs.getreader(encoding)(sys.stdin);
+
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
     logging.debug('Starting up server')
     from tornado.options import options

@@ -127,7 +127,7 @@ class DecoderPipeline(object):
                 self.asr.set_property("silent", True)
 
     def _on_word(self, asr, word):
-        logger.info("%s: Got word: %s" % (self.request_id, word))
+        logger.info("%s: Got word: %s" % (self.request_id, word.decode('utf8')))
         if self.word_handler:
             self.word_handler(word)
 

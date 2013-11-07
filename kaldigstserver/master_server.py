@@ -148,11 +148,6 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 def main():
-    encoding = locale.getdefaultlocale()[1]
-    print >> sys.stderr, "Using", encoding, "for input and output"
-    sys.stdout = codecs.getwriter(encoding)(sys.stdout);
-    sys.stdin = codecs.getreader(encoding)(sys.stdin);
-
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
     logging.debug('Starting up server')
     from tornado.options import options

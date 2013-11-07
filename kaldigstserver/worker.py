@@ -134,11 +134,6 @@ class ServerWebsocket(WebSocketClient):
 
 
 def main():
-    encoding = locale.getdefaultlocale()[1]
-    print >> sys.stderr, "Using", encoding , "for input and output"
-    sys.stdout = codecs.getwriter(encoding)(sys.stdout);
-    sys.stdin = codecs.getreader(encoding)(sys.stdin);
-
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
     logging.debug('Starting up worker')
     parser = argparse.ArgumentParser(description='Worker for kaldigstserver')

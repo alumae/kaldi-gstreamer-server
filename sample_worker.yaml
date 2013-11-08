@@ -1,3 +1,4 @@
+timeout-decoder : 10
 decoder:
    model: test/models/estonian/tri2b_mmi_pruned/final.mdl
    lda-mat: test/models/estonian/tri2b_mmi_pruned/final.mat

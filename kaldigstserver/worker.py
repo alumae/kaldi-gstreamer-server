@@ -20,9 +20,8 @@ import common
 
 logger = logging.getLogger(__name__)
 
-TIMEOUT_DECODER = 5
 CONNECT_TIMEOUT = 5
-
+SILENCE_TIMEOUT = 5
 
 class ServerWebsocket(WebSocketClient):
     STATE_CREATED = 0
@@ -45,15 +44,17 @@ class ServerWebsocket(WebSocketClient):
         self.state = self.STATE_CREATED
         self.last_decoder_message = time.time()
         self.request_id = "<undefined>"
+        self.timeout_decoder = 5
 
     def opened(self):
         logger.info("Opened websocket connection to server")
         self.state = self.STATE_CONNECTED
 
     def guard_timeout(self):
+        global SILENCE_TIMEOUT
         while self.state in [self.STATE_CONNECTED, self.STATE_INITIALIZED, self.STATE_PROCESSING]:
-            if time.time() - self.last_decoder_message > TIMEOUT_DECODER:
-                logger.warning("%s: More than %d seconds from last decoder activity, cancelling" % (self.request_id, TIMEOUT_DECODER))
+            if time.time() - self.last_decoder_message > SILENCE_TIMEOUT:
+                logger.warning("%s: More than %d seconds from last decoder activity, cancelling" % (self.request_id, SILENCE_TIMEOUT))
                 self.state = self.STATE_CANCELLING
                 self.decoder_pipeline.cancel()
                 event = dict(status=common.STATUS_NO_SPEECH)
@@ -155,6 +156,9 @@ def main():
 
     if "logging" in conf:
         logging.config.dictConfig(conf["logging"])
+
+    global SILENCE_TIMEOUT
+    SILENCE_TIMEOUT = conf.get("silence-timeout", 5)
     decoder_pipeline = DecoderPipeline(conf)
 
     post_processor = None

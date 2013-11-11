@@ -6,6 +6,10 @@ decoder:
    fst: test/models/estonian/tri2b_mmi_pruned/HCLG.fst
    silence-phones: 6
 out-dir: tmp
+
+use-vad: True
+silence-timeout: 60
+
 # Reconstructs compound words. Requires SRILM. Just comment out when no SRILM available.
 post-processor: hidden-ngram -hidden-vocab test/models/estonian/compounder/hidden.vocab -lm test/models/estonian/compounder/compounder-pruned.vestlused-dev.splitw.arpa.gz  -text - -keep-unk | perl -npe 'BEGIN {use IO::Handle; STDOUT->autoflush(1);} s/ ?\+C\+ ?//g; s/ ?\+D\+ ?/-/g;'
 logging:

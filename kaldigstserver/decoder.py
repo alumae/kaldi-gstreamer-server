@@ -20,7 +20,7 @@ import pdb
 class DecoderPipeline(object):
     def __init__(self, conf={}):
         logger.info("Creating decoder using conf: %s" % conf)
-        self.use_cutter = False
+        self.use_cutter = conf.get("use-vad", False)
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
 

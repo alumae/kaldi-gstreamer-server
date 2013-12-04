@@ -130,7 +130,7 @@ class ServerWebsocket(WebSocketClient):
             self.post_processor.stdin.flush()
             text = self.post_processor.stdout.readline()
             text = text.replace("\\n", "\n")
-            return text.strip()
+            return text
         else:
             return text
 

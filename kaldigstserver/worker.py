@@ -106,15 +106,19 @@ class ServerWebsocket(WebSocketClient):
             if len(self.partial_transcript) > 0:
                 self.partial_transcript += " "
             self.partial_transcript += word
+            logger.info("%s: Postprocessing partial result.."  % self.request_id)
+            processed_transcript = self.post_process(self.partial_transcript)
+            logger.info("%s: Postprocessing done." % self.request_id)
+
             event = dict(status=common.STATUS_SUCCESS,
-                         result=dict(hypotheses=[dict(transcript=self.partial_transcript)], final=False))
+                         result=dict(hypotheses=[dict(transcript=processed_transcript)], final=False))
             self.send(json.dumps(event))
         else:
             logger.info("%s: Postprocessing final result.."  % self.request_id)
-            final_transcript = self.post_process(self.partial_transcript)
+            processed_transcript = self.post_process(self.partial_transcript)
             logger.info("%s: Postprocessing done." % self.request_id)
             event = dict(status=common.STATUS_SUCCESS,
-                         result=dict(hypotheses=[dict(transcript=final_transcript)], final=True))
+                         result=dict(hypotheses=[dict(transcript=processed_transcript)], final=True))
             self.send(json.dumps(event))
             self.partial_transcript = ""
 

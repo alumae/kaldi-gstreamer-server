@@ -112,9 +112,9 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         self.id = str(uuid.uuid4())
-        logging.info("%s: OPEN" % self.id)
-        logging.info("%s: ARGS  %s" % (self.id, str(self.path_args)))
-        logging.info("%s: KWARGS: %s" % (self.id, str(self.path_kwargs)))
+        self.user_id = self.get_argument("user-id", "none", True)
+        self.content_id = self.get_argument("content-id", "none", True)
+        logging.info("%s: OPEN: user='%s', content='%s'" % (self.id, self.user_id, self.content_id))
         self.worker = None
         try:
             self.worker = self.application.available_workers.pop()
@@ -123,10 +123,10 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             self.worker.set_client_socket(self)
 
             content_type = self.get_argument("content-type", None, True)
-
             if content_type:
                 logging.info("%s: Using content type: %s" % (self.id, content_type))
-            self.worker.write_message(json.dumps(dict(id=self.id, content_type=content_type)))
+
+            self.worker.write_message(json.dumps(dict(id=self.id, content_type=content_type, user_id=self.user_id, content_id=self.content_id)))
         except KeyError:
             logging.warn("%s: No worker available for client request" % self.id)
             event = dict(status=common.STATUS_NOT_AVAILABLE, message="No decoder available, try again later")

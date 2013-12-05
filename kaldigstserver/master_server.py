@@ -110,9 +110,11 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         logging.info("%s: Sending event %s to client" % (self.id, str(event)))
         self.write_message(json.dumps(event))
 
-    def open(self):
+    def open(self, *args, **kwargs):
         self.id = str(uuid.uuid4())
         logging.info("%s: OPEN" % self.id)
+        logging.info("%s: ARGS  %s" % (self.id, str(args)))
+        logging.info("%s: KWARGS: %s" % (self.id, str(kwargs)))
         self.worker = None
         try:
             self.worker = self.application.available_workers.pop()
@@ -121,6 +123,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
             self.worker.set_client_socket(self)
 
             content_type = self.get_argument("content-type", None, True)
+
             if content_type:
                 logging.info("%s: Using content type: %s" % (self.id, content_type))
             self.worker.write_message(json.dumps(dict(id=self.id, content_type=content_type)))

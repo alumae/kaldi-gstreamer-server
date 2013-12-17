@@ -6,14 +6,11 @@
 Reads speech data via websocket requests, sends it to Redis, waits for results from Redis and
 forwards to client via websocket
 """
-import sys
-import threading
-import time
 import logging
-import datetime
 import json
 import codecs
-import locale
+import os.path
+import uuid
 
 import tornado.escape
 import tornado.ioloop
@@ -21,12 +18,6 @@ import tornado.options
 import tornado.web
 import tornado.websocket
 import tornado.gen
-
-import os.path
-import uuid
-
-from tornado.options import define, options
-
 import settings
 import common
 
@@ -37,7 +28,7 @@ class Application(tornado.web.Application):
             cookie_secret="43oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             template_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"),
             static_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), "static"),
-            xsrf_cookies=True,
+            xsrf_cookies=False,
             autoescape=None,
         )
 
@@ -45,6 +36,7 @@ class Application(tornado.web.Application):
             (r"/", MainHandler),
             (r"/client/ws/speech", DecoderSocketHandler),
             (r"/client/ws/status", StatusSocketHandler),
+            (r"/client/dynamic/reference", ReferenceHandler),
             (r"/worker/ws/speech", WorkerSocketHandler),
             (r"/client/static/(.*)", tornado.web.StaticFileHandler, {'path': settings["static_path"]}),
         ]
@@ -61,10 +53,33 @@ class Application(tornado.web.Application):
         for ws in self.status_listeners:
             self.send_status_update_single(ws)
 
+    def save_reference(self, content_id, content):
+        refs = {}
+        try:
+            with open("reference-content.json") as f:
+                refs = json.load(f)
+        except:
+            pass
+        refs[content_id] = content
+        with open("reference-content.json", "w") as f:
+            json.dump(refs, f, indent=2)
+
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("../../README.md")
+
+
+class ReferenceHandler(tornado.web.RequestHandler):
+    def post(self, *args, **kwargs):
+        content_id = self.request.headers.get("Content-Id")
+        if content_id:
+            content = codecs.decode(self.request.body, "utf-8")
+            user_id = self.request.headers.get("User-Id", "")
+            self.application.save_reference(content_id, dict(content=content, user_id=user_id))
+        else:
+            self.set_status(400)
+            self.finish("No Content-Id specified")
 
 
 class StatusSocketHandler(tornado.websocket.WebSocketHandler):

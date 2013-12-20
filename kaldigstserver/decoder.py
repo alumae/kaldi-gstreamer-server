@@ -24,7 +24,6 @@ class DecoderPipeline(object):
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
 
-        self.recognizing = False
         self.word_handler = None
         self.eos_handler = None
         self.request_id = "<undefined>"
@@ -171,19 +170,19 @@ class DecoderPipeline(object):
         #self.filesink.set_state(Gst.State.PLAYING)        
         #self.decodebin.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.PLAYING)
+        self.filesink.set_state(Gst.State.PLAYING)
+        # push empty buffer (to avoid hang on client diconnect)
+        buf = Gst.Buffer.new_allocate(None, 0, None)
+        self.appsrc.emit("push-buffer", buf)
 
 
     def process_data(self, data):
-
         logger.debug('%s: Pushing buffer of size %d to pipeline' % (self.request_id, len(data)))
         buf = Gst.Buffer.new_allocate(None, len(data), None)
         # FIXME: find more efficient way to do this
         for (i, c) in enumerate(data):
             buf.memset(i, c, 1)
         self.appsrc.emit("push-buffer", buf)
-        self.filesink.set_state(Gst.State.PLAYING)
-
-        self.recognizing = True
 
 
     def end_request(self):

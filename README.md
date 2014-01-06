@@ -1,21 +1,71 @@
 Kaldi Gstreamer server
 ======================
 
+This is an implementation of a real-time full-duplex speech recognition server, based on
+the Kaldi toolkit and the GStreamer framwork.
+
+Communication with the server is based on weksockets. Client sends speech to the server using
+small chunks, while the server sends partial and full recognition hypotheses back to
+the client via the same websocket, thus enabling full-duplex communication (as in Google's
+voice typing in Android).
+
 Server usage
 ------------
 
-Using the server is very easy:
+### Opening a session
 
-  * open the websocket 
-  * send chunks of binary speech data to the websocket (either raw or encoded, see below); the chunks should be sent at least once per second, otherwise the server assumes the client is "stale" and closes the connection
-  * read recognized words from websocket (sent on word-by-word basis), with a special word "<#s>" marking sentence break
-  * finally send the string "EOS" (""end-of-stream") to the websocket
-  * when server closes the websocket, all data has been recognized and sent to the client
- 
-Speech data can be sent as raw or encoded. To send raw data, one has to specify the type of the raw data, using the "content-type" query parameter when opening the websocket. The content type has to be specified using GStreamer 1.0 caps format, e.g. to send 16000 Hz mono 16-bit data, use: "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1". This needs to be url-encoded of course, so the actual request is something like:
+To open a session, connect to the specified server websocket address (e.g. ws://server:8888/speech).
+The server assumes by deafult that incoming audio is sent using 16 kHz, mono, 16bit little-endian format. This can be overriden
+using the 'content-type' request parameter. The content type has to be specified using GStreamer 1.0 caps format,
+e.g. to send 44100 Hz mono 16-bit data, use: "audio/x-raw, layout=(string)interleaved, rate=(int)44100, format=(string)S16LE, channels=(int)1".
+This needs to be url-encoded of course, so the actual request is something like:
 
-    ws://server:8888/speech?content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)16000,+format=(string)S16LE,+channels=(int)1 
-  
-One can also send data that is already encoded in some known format (e.g., wav, mp3, ogg, speex, anything that GStreamer supports). In this case, you don't have to send the content type at all -- the server recognizes the encoding automatically.
+    ws://server:8888/speech?content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)44100,+format=(string)S16LE,+channels=(int)1
 
-Server closes the connection when the stream has been fully decoded, or when no new words have been recognized during the last 10 seconds. That means, when you send a long section of silence, the server closes the connection (this to avoid stale connections).
+Audio can also be encoded using any codec recognized by GStreamer (assuming the needed packages are instealled on teh server).
+E.g., to send audio encoded using the Speex codec in an Ogg container, use the following URL to open the session (server should
+automatically recognize the codec):
+
+    ws://server:8888/speech?content-type=audio/ogg
+
+### Sending audio
+
+Speech should be sent to the server in raw blocks of data, using the encoding specified when session was opened.
+It is recommended that a new block is sent at least 4 times per second (more infrequent blocks would increase the recognition lag).
+
+After the last block of speech data, a special string "EOS"  ("end-of-stream") needs to be sent to the server. This tells the
+server that no more speech is coming and the recognition can be finalized.
+
+### Reading results
+
+Server sends recognition results and other information to the client using the JSON format.
+The response can contain the following fields:
+
+  * status -- response status, see codes below
+  * message -- (optional) status message
+  * result -- (optional) recognition result, containing the followig fields:
+    - hypotheses - recognized words, a list of the following:
+      * transcript -- recognized words
+      * confidence -- (optional) confidence of the hypothesis (float, 0..1)
+    - final -- true when the hypothesis is final, i.e., doesn't change any more
+
+The following status codes are currently in use:
+  * 0 -- Success. Usually used when recognition results are sent
+  * 2 -- Aborted. Recognition was aborted for some reason.
+  * 1 -- No speech. Sent when the incoming audio contains a large portion of silence or non-speech.
+  * 9 -- Not avalailable. Used when all recognizer processes are currently in use and recognition cannot be performed.
+
+Websocket is always closed by the server after sending a non-zero status update.
+
+Examples on server responses:
+
+    {"status": 9}
+    {"status": 0, "result": {"hypotheses": [{"transcript": "see on"}], "final": false}}
+    {"status": 0, "result": {"hypotheses": [{"transcript": "see on teine lause."}], "final": true}}
+
+Server segments incoming audio on the fly. For each segment, many non-final and one final
+hypothesis are sent. Non-final hypothesis may change in any way. After sendig a final hypothesis,
+server proceeds to the next segment or closes the connection, if the segment was last.
+Client is reponsible for presneting the results to the user in a way
+suitable for the application.
+

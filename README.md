@@ -49,7 +49,7 @@ The response can contain the following fields:
 
   * status -- response status, see codes below
   * message -- (optional) status message
-  * result -- (optional) recognition result, containing the followig fields:
+  * result -- (optional) recognition result, containing the following fields:
     - hypotheses - recognized words, a list with each item containing the following:
         + transcript -- recognized words
         + confidence -- (optional) confidence of the hypothesis (float, 0..1)

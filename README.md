@@ -45,11 +45,12 @@ The response can contain the following fields:
   * message -- (optional) status message
   * result -- (optional) recognition result, containing the followig fields:
     - hypotheses - recognized words, a list of the following:
-      * transcript -- recognized words
-      * confidence -- (optional) confidence of the hypothesis (float, 0..1)
+      + transcript -- recognized words
+      + confidence -- (optional) confidence of the hypothesis (float, 0..1)
     - final -- true when the hypothesis is final, i.e., doesn't change any more
 
 The following status codes are currently in use:
+
   * 0 -- Success. Usually used when recognition results are sent
   * 2 -- Aborted. Recognition was aborted for some reason.
   * 1 -- No speech. Sent when the incoming audio contains a large portion of silence or non-speech.

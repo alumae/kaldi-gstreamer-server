@@ -32,9 +32,15 @@ automatically recognize the codec):
 
 Speech should be sent to the server in raw blocks of data, using the encoding specified when session was opened.
 It is recommended that a new block is sent at least 4 times per second (less infrequent blocks would increase the recognition lag).
+Blocks do not have to be of equal size.
 
 After the last block of speech data, a special string "EOS"  ("end-of-stream") needs to be sent to the server. This tells the
 server that no more speech is coming and the recognition can be finalized.
+
+After sending "EOS", client has to keep the websocket open to receive recognition results from the server. Server
+closes the connection itself when all recognition results have been sent to the client.
+No more audio can be sent via the same websocket after an "EOS" has been sent. In order to process a new
+audio stream, a new websocket connection has to be created by the client.
 
 ### Reading results
 
@@ -64,11 +70,12 @@ Examples on server responses:
     {"status": 0, "result": {"hypotheses": [{"transcript": "see on"}], "final": false}}
     {"status": 0, "result": {"hypotheses": [{"transcript": "see on teine lause."}], "final": true}}
 
-Server segments incoming audio on the fly. For each segment, many non-final and one final
-hypotheses are sent. Non-final hypotheses are used to present partial recognition hypotheses
-to the client. A sequence of non-final hypotheses is always followed by a final hypothesis.
-After sending a final hypothesis,
-server proceeds to the next segment or closes the connection, if the segment was last.
+Server segments incoming audio on the fly. For each segment, many non-final hypotheses, followed by one final
+hypothesis are sent. Non-final hypotheses are used to present partial recognition hypotheses
+to the client. A sequence of non-final hypotheses is always followed by a final hypothesis for that segment.
+After sending a final hypothesis for a segment,
+server starts decoding the next segment, or closes the connection, if all audio sent by the client has been processed.
+
 Client is reponsible for presenting the results to the user in a way
 suitable for the application.
 

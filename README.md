@@ -67,7 +67,7 @@ Examples on server responses:
 Server segments incoming audio on the fly. For each segment, many non-final and one final
 hypotheses are sent. Non-final hypotheses are used to present partial recognition hypotheses
 to the client. A sequence of non-final hypotheses is always followed by a final hypothesis.
-After sendig a final hypothesis,
+After sending a final hypothesis,
 server proceeds to the next segment or closes the connection, if the segment was last.
 Client is reponsible for presenting the results to the user in a way
 suitable for the application.

@@ -1,4 +1,4 @@
-Kaldi Gstreamer server
+Kaldi GStreamer server
 ======================
 
 This is an implementation of a real-time full-duplex speech recognition server, based on
@@ -22,7 +22,7 @@ This needs to be url-encoded of course, so the actual request is something like:
 
     ws://server:8888/speech?content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)44100,+format=(string)S16LE,+channels=(int)1
 
-Audio can also be encoded using any codec recognized by GStreamer (assuming the needed packages are instealled on teh server).
+Audio can also be encoded using any codec recognized by GStreamer (assuming the needed packages are installed on the server).
 E.g., to send audio encoded using the Speex codec in an Ogg container, use the following URL to open the session (server should
 automatically recognize the codec):
 
@@ -31,7 +31,7 @@ automatically recognize the codec):
 ### Sending audio
 
 Speech should be sent to the server in raw blocks of data, using the encoding specified when session was opened.
-It is recommended that a new block is sent at least 4 times per second (more infrequent blocks would increase the recognition lag).
+It is recommended that a new block is sent at least 4 times per second (less infrequent blocks would increase the recognition lag).
 
 After the last block of speech data, a special string "EOS"  ("end-of-stream") needs to be sent to the server. This tells the
 server that no more speech is coming and the recognition can be finalized.
@@ -44,7 +44,7 @@ The response can contain the following fields:
   * status -- response status, see codes below
   * message -- (optional) status message
   * result -- (optional) recognition result, containing the followig fields:
-    - hypotheses - recognized words, a list of the following:
+    - hypotheses - recognized words, a list with each item containing the following:
         + transcript -- recognized words
         + confidence -- (optional) confidence of the hypothesis (float, 0..1)
     - final -- true when the hypothesis is final, i.e., doesn't change any more
@@ -65,7 +65,9 @@ Examples on server responses:
     {"status": 0, "result": {"hypotheses": [{"transcript": "see on teine lause."}], "final": true}}
 
 Server segments incoming audio on the fly. For each segment, many non-final and one final
-hypothesis are sent. Non-final hypothesis may change in any way. After sendig a final hypothesis,
+hypotheses are sent. Non-final hypotheses are used to present partial recognition hypotheses
+to the client. A sequence of non-final hypotheses is always followed by a final hypothesis.
+After sendig a final hypothesis,
 server proceeds to the next segment or closes the connection, if the segment was last.
 Client is reponsible for presneting the results to the user in a way
 suitable for the application.

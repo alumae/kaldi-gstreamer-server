@@ -69,6 +69,6 @@ hypotheses are sent. Non-final hypotheses are used to present partial recognitio
 to the client. A sequence of non-final hypotheses is always followed by a final hypothesis.
 After sendig a final hypothesis,
 server proceeds to the next segment or closes the connection, if the segment was last.
-Client is reponsible for presneting the results to the user in a way
+Client is reponsible for presenting the results to the user in a way
 suitable for the application.
 

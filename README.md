@@ -2,9 +2,9 @@ Kaldi Gstreamer server
 ======================
 
 This is an implementation of a real-time full-duplex speech recognition server, based on
-the Kaldi toolkit and the GStreamer framwork.
+the Kaldi toolkit and the GStreamer framework.
 
-Communication with the server is based on weksockets. Client sends speech to the server using
+Communication with the server is based on websockets. Client sends speech to the server using
 small chunks, while the server sends partial and full recognition hypotheses back to
 the client via the same websocket, thus enabling full-duplex communication (as in Google's
 voice typing in Android).

@@ -15,7 +15,7 @@ Server usage
 ### Opening a session
 
 To open a session, connect to the specified server websocket address (e.g. ws://server:8888/speech).
-The server assumes by deafult that incoming audio is sent using 16 kHz, mono, 16bit little-endian format. This can be overriden
+The server assumes by default that incoming audio is sent using 16 kHz, mono, 16bit little-endian format. This can be overriden
 using the 'content-type' request parameter. The content type has to be specified using GStreamer 1.0 caps format,
 e.g. to send 44100 Hz mono 16-bit data, use: "audio/x-raw, layout=(string)interleaved, rate=(int)44100, format=(string)S16LE, channels=(int)1".
 This needs to be url-encoded of course, so the actual request is something like:
@@ -64,7 +64,7 @@ The following status codes are currently in use:
 
 Websocket is always closed by the server after sending a non-zero status update.
 
-Examples on server responses:
+Examples of server responses:
 
     {"status": 9}
     {"status": 0, "result": {"hypotheses": [{"transcript": "see on"}], "final": false}}

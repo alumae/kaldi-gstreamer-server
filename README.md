@@ -9,6 +9,31 @@ small chunks, while the server sends partial and full recognition hypotheses bac
 the client via the same websocket, thus enabling full-duplex communication (as in Google's
 voice typing in Android).
 
+Installation
+------------
+
+### Requirements
+
+#### Tornado web framework
+
+Install Tornado 3, see http://www.tornadoweb.org/en/stable/
+
+#### Kaldi
+
+Download and compile Kaldi (http://kaldi.sourceforge.net). Also compile the online extensions (`make ext`)
+and the Kaldi GStreamer plugin (see `README` in Kaldi's `src/gst-plugin` directory).
+
+#### Acoustic and language models for Kaldi
+
+You need GMM-HMM-based acooustic and n-gram language models (actually their FST cascade) for your language.
+Heavily pruned models for Estonian everyday speech are available in `test/models/estonian`).
+
+
+Running the server
+------------------
+
+TODO
+
 Server usage
 ------------
 
@@ -78,4 +103,9 @@ server starts decoding the next segment, or closes the connection, if all audio 
 
 Client is reponsible for presenting the results to the user in a way
 suitable for the application.
+
+Client software
+---------------
+
+Javascript client is available here: http://kaljurand.github.io/dictate.js
 

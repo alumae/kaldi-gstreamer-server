@@ -58,7 +58,7 @@ offering practically unlimited parallelness.
 To run a worker, first write a configuration file. A sample configuration that uses the English
 models that come with this project is available in `sample_worker.yaml`.
 
-Before starting a worker, make sure that the GST plugin path includes Kaldi's `src/gst-plugin` diractory
+Before starting a worker, make sure that the GST plugin path includes Kaldi's `src/gst-plugin` directory
 (which should contain the file `libgstkaldi.so`), something like:
 
     export GST_PLUGIN_PATH=~/tools/kaldi-trunk/src/gst-plugin

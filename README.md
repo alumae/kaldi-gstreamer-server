@@ -7,7 +7,8 @@ the Kaldi toolkit and the GStreamer framework.
 Communication with the server is based on websockets. Client sends speech to the server using
 small chunks, while the server sends partial and full recognition hypotheses back to
 the client via the same websocket, thus enabling full-duplex communication (as in Google's
-voice typing in Android).
+voice typing in Android). Client can be implemented in Javascript, thus enabling browser-based
+speech recognition.
 
 Installation
 ------------
@@ -32,7 +33,7 @@ and the Kaldi GStreamer plugin (see `README` in Kaldi's `src/gst-plugin` directo
 You need GMM-HMM-based acoustic and n-gram language models (actually their FST cascade) for your language.
 
 Working (but not very accurate) recognition models are available for English and Estonian in the  `test/models/` directory.
-English models are based on Voxforge acoustic models and the CMU Shpinx  2013 general English trigram language model (http://cmusphinx.sourceforge.net/2013/01/a-new-english-language-model-release/).
+English models are based on Voxforge acoustic models and the CMU Sphinx  2013 general English trigram language model (http://cmusphinx.sourceforge.net/2013/01/a-new-english-language-model-release/).
 The language models were heavily pruned so that the resulting FST cascade would be less than the
 100 MB GitHub file size limit.
 

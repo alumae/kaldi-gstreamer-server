@@ -14,9 +14,13 @@ Installation
 
 ### Requirements
 
-#### Tornado web framework
+#### Python 2.7 with the following packages:
 
-Install Tornado 3, see http://www.tornadoweb.org/en/stable/
+  * Tornado 3, see http://www.tornadoweb.org/en/stable/
+  * ws4py
+  * YAML
+  * JSON
+
 
 #### Kaldi
 
@@ -25,33 +29,76 @@ and the Kaldi GStreamer plugin (see `README` in Kaldi's `src/gst-plugin` directo
 
 #### Acoustic and language models for Kaldi
 
-You need GMM-HMM-based acooustic and n-gram language models (actually their FST cascade) for your language.
-Heavily pruned models for Estonian everyday speech are available in `test/models/estonian`).
+You need GMM-HMM-based acoustic and n-gram language models (actually their FST cascade) for your language.
+
+Working (but not very accurate) recognition models are available for English and Estonian in the  `test/models/` directory.
+English models are based on Voxforge acoustic models and the CMU Shpinx  2013 general English trigram language model (http://cmusphinx.sourceforge.net/2013/01/a-new-english-language-model-release/).
+The language models were heavily pruned so that the resulting FST cascade would be less than the
+100 MB GitHub file size limit.
 
 
 Running the server
 ------------------
 
-TODO
+### Running the master server
+
+The following starts the main server on localhost:8888
+
+    python kaldigstserver/master_server.py --port=8888
+
+### Running workers
+
+The master server doesn't perform speech recognition itself, it simply delegates client recognition
+requests to workers. You need one worker per recognition session. So, the number of running workers
+should be at least the number of potential concurrent recognition sessions. Good thing is that
+workers are fully independent and do not even have to be running on the same machine, thus
+offering practically unlimited parallelness.
+
+To run a worker, first write a configuration file. A sample configuration that uses the English
+models that come with this project is available in `sample_worker.yaml`.
+
+Before starting a worker, make sure that the GST plugin path includes Kaldi's `src/gst-plugin` diractory
+(which should contain the file `libgstkaldi.so`), something like:
+
+    export GST_PLUGIN_PATH=~/tools/kaldi-trunk/src/gst-plugin
+
+Test if it worked:
+
+    gst-inspect-1.0 onlinegmmdecodefaster
+
+The latter should print out information about the Kaldi's GStreamer plugin.
+
+Now, you can start a worker:
+
+    python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c sample_worker.yaml
+
+The `-u ws://localhost:8890/worker/ws/speech` argument specifies the address of the main server
+that the worker should connect to. Make sure you are using the same port as in the server invocation.
+
+You can start any number of worker processes, just use the same command to start the next workers.
+
+It might be a good idea to use [supervisord](http://supervisord.org) to start and stop the main server and
+several workers. A sample supervisord configuration file is in `etc/english-supervisord.conf`.
+
 
 Server usage
 ------------
 
 ### Opening a session
 
-To open a session, connect to the specified server websocket address (e.g. ws://server:8888/speech).
+To open a session, connect to the specified server websocket address (e.g. ws://localhost:8888/client/ws/speech).
 The server assumes by default that incoming audio is sent using 16 kHz, mono, 16bit little-endian format. This can be overriden
 using the 'content-type' request parameter. The content type has to be specified using GStreamer 1.0 caps format,
 e.g. to send 44100 Hz mono 16-bit data, use: "audio/x-raw, layout=(string)interleaved, rate=(int)44100, format=(string)S16LE, channels=(int)1".
 This needs to be url-encoded of course, so the actual request is something like:
 
-    ws://server:8888/speech?content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)44100,+format=(string)S16LE,+channels=(int)1
+    ws://localhost:8888/client/ws/speech?content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)44100,+format=(string)S16LE,+channels=(int)1
 
 Audio can also be encoded using any codec recognized by GStreamer (assuming the needed packages are installed on the server).
 E.g., to send audio encoded using the Speex codec in an Ogg container, use the following URL to open the session (server should
 automatically recognize the codec):
 
-    ws://server:8888/speech?content-type=audio/ogg
+    ws://localhost:8888/client/ws/speech?content-type=audio/ogg
 
 ### Sending audio
 
@@ -59,7 +106,7 @@ Speech should be sent to the server in raw blocks of data, using the encoding sp
 It is recommended that a new block is sent at least 4 times per second (less infrequent blocks would increase the recognition lag).
 Blocks do not have to be of equal size.
 
-After the last block of speech data, a special string "EOS"  ("end-of-stream") needs to be sent to the server. This tells the
+After the last block of speech data, a special 3-byte ANSI-encoded string "EOS"  ("end-of-stream") needs to be sent to the server. This tells the
 server that no more speech is coming and the recognition can be finalized.
 
 After sending "EOS", client has to keep the websocket open to receive recognition results from the server. Server
@@ -72,7 +119,7 @@ audio stream, a new websocket connection has to be created by the client.
 Server sends recognition results and other information to the client using the JSON format.
 The response can contain the following fields:
 
-  * status -- response status, see codes below
+  * status -- response status (integer), see codes below
   * message -- (optional) status message
   * result -- (optional) recognition result, containing the following fields:
     - hypotheses - recognized words, a list with each item containing the following:

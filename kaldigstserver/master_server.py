@@ -81,6 +81,14 @@ class ReferenceHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.finish("No Content-Id specified")
 
+    def options(self, *args, **kwargs):
+        self.set_header('Access-Control-Allow-Origin', '*')
+        self.set_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.set_header('Access-Control-Max-Age', 1000)
+        # note that '*' is not valid for Access-Control-Allow-Headers
+        self.set_header('Access-Control-Allow-Headers',  'origin, x-csrftoken, content-type, accept')
+
+
 
 class StatusSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):

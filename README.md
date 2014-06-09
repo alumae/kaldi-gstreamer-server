@@ -103,7 +103,7 @@ You can also send ogg audio:
 
     python kaldigstserver/client.py -r 4800 test/data/english_test.ogg
 
-The rate in the last command is 4800. The bit rate of the ogg file is 37.5, which results in a byte rate of 4800.
+The rate in the last command is 4800. The bit rate of the ogg file is 37.5k, which results in a byte rate of 4800.
 
 
 

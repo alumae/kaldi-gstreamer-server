@@ -77,7 +77,7 @@ class DecoderPipelineTests(unittest.TestCase):
         self.assertEqual(["üks", "kaks", "kolm", "neli", "<#s>", "viis", "kuus", "seitse", "kaheksa", "<#s>"], self.words)
 
     def testWav(self):
-        self.decoder_pipeline.init_request("test0", "audio/x-wav")
+        self.decoder_pipeline.init_request("test0", "")
         f = open("test/data/lause2.wav", "rb")
         for block in iter(lambda: f.read(16000*2*2/4), ""):
             time.sleep(0.25)
@@ -91,7 +91,7 @@ class DecoderPipelineTests(unittest.TestCase):
         self.assertEqual("see on teine lause <#s>".split(), self.words)
 
     def testOgg(self):
-        self.decoder_pipeline.init_request("test0", "audio/ogg")
+        self.decoder_pipeline.init_request("test0", "")
         f = open("test/data/test_2lauset.ogg", "rb")
         for block in iter(lambda: f.read(86*1024/8/4), ""):
             time.sleep(0.25)

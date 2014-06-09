@@ -156,9 +156,10 @@ class DecoderPipeline(object):
             caps = Gst.caps_from_string(caps_str)
             self.appsrc.set_property("caps", caps)
         else:
-            caps = Gst.caps_from_string("")
-            self.appsrc.set_property("caps", caps)
+            #caps = Gst.caps_from_string("")
+            #self.appsrc.set_property("caps", caps)
             #self.pipeline.set_state(Gst.State.READY)
+            pass
         #self.appsrc.set_state(Gst.State.PAUSED)
 
         if self.outdir:

@@ -82,8 +82,33 @@ It might be a good idea to use [supervisord](http://supervisord.org) to start an
 several workers. A sample supervisord configuration file is in `etc/english-supervisord.conf`.
 
 
+
 Server usage
 ------------
+
+A sample implementation of the client is in `kaldigstserver/client.py`.
+
+If you started the server/worker as described above, you should be able to test the installation by invoking:
+
+    python kaldigstserver/client.py -r 32000 test/data/english_test.raw
+
+Expected output:
+
+    THE. ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT.
+
+The `-r 32000` in the last command tells the client to send audio to the server at 32000 bytes per second. The raw
+sample audio file uses a sample rate of 16k with a 16-bit encoding which results in a byterate of 32000.
+
+You can also send ogg audio:
+
+    python kaldigstserver/client.py -r 4800 test/data/english_test.ogg
+
+The rate in the last command is 4800. The bit rate of the ogg file is 37.5, which results in a byte rate of 4800.
+
+
+
+Client-server protocol
+----------------------
 
 ### Opening a session
 

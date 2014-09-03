@@ -50,7 +50,7 @@ class DecoderPipelineTests(unittest.TestCase):
 
 
     def testCancelAfterEOS(self):
-        self.decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
+        self.decoder_pipeline.init_request("testCancelAfterEOS", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
         f = open("test/data/1234-5678.raw", "rb")
         for block in iter(lambda: f.read(8000), ""):
             time.sleep(0.25)
@@ -58,12 +58,14 @@ class DecoderPipelineTests(unittest.TestCase):
 
         self.decoder_pipeline.end_request()
         self.decoder_pipeline.cancel()
+        while not self.finished:
+            time.sleep(1)
 
         #self.assertEqual(["üks", "kaks", "kolm", "neli", "<#s>", "viis", "kuus", "seitse", "kaheksa", "<#s>"], self.words)
 
 
     def test12345678(self):
-        self.decoder_pipeline.init_request("test0", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
+        self.decoder_pipeline.init_request("test12345678", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
         f = open("test/data/1234-5678.raw", "rb")
         for block in iter(lambda: f.read(8000), ""):
             time.sleep(0.25)
@@ -77,7 +79,7 @@ class DecoderPipelineTests(unittest.TestCase):
         self.assertEqual(["üks", "kaks", "kolm", "neli", "<#s>", "viis", "kuus", "seitse", "kaheksa", "<#s>"], self.words)
 
     def testWav(self):
-        self.decoder_pipeline.init_request("test0", "")
+        self.decoder_pipeline.init_request("testWav", "")
         f = open("test/data/lause2.wav", "rb")
         for block in iter(lambda: f.read(16000*2*2/4), ""):
             time.sleep(0.25)
@@ -91,7 +93,7 @@ class DecoderPipelineTests(unittest.TestCase):
         self.assertEqual("see on teine lause <#s>".split(), self.words)
 
     def testOgg(self):
-        self.decoder_pipeline.init_request("test0", "")
+        self.decoder_pipeline.init_request("testOgg", "")
         f = open("test/data/test_2lauset.ogg", "rb")
         for block in iter(lambda: f.read(86*1024/8/4), ""):
             time.sleep(0.25)

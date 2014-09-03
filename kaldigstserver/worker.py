@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5
 SILENCE_TIMEOUT = 5
-
-USE_DECODER2 = True
+USE_DECODER2 = False
 
 class ServerWebsocket(WebSocketClient):
     STATE_CREATED = 0
@@ -165,6 +164,7 @@ def main():
     parser.add_argument('-u', '--uri', default="ws://localhost:8888/worker/ws/speech", dest="uri", help="Server<-->worker websocket URI")
     parser.add_argument('-f', '--fork', default=1, dest="fork", type=int)
     parser.add_argument('-c', '--conf', dest="conf", help="YAML file with decoder configuration")
+
     args = parser.parse_args()
 
     if args.fork > 1:
@@ -180,6 +180,9 @@ def main():
 
     if "logging" in conf:
         logging.config.dictConfig(conf["logging"])
+
+    global USE_DECODER2
+    SILENCE_TIMEOUT = conf.get("use-decoder2", False)
 
     global SILENCE_TIMEOUT
     SILENCE_TIMEOUT = conf.get("silence-timeout", 5)

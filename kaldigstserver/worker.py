@@ -16,12 +16,15 @@ import codecs
 from ws4py.client.threadedclient import WebSocketClient
 
 from decoder import DecoderPipeline
+from decoder2 import DecoderPipeline2
 import common
 
 logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5
 SILENCE_TIMEOUT = 5
+
+USE_DECODER2 = True
 
 class ServerWebsocket(WebSocketClient):
     STATE_CREATED = 0
@@ -39,7 +42,10 @@ class ServerWebsocket(WebSocketClient):
         WebSocketClient.__init__(self, url=uri)
         self.pipeline_initialized = False
         self.partial_transcript = ""
-        self.decoder_pipeline.set_word_handler(self._on_word)
+        if USE_DECODER2:
+            self.decoder_pipeline.set_result_handler(self._on_result)
+        else:
+            self.decoder_pipeline.set_word_handler(self._on_word)
         self.decoder_pipeline.set_eos_handler(self._on_eos)
         self.state = self.STATE_CREATED
         self.last_decoder_message = time.time()
@@ -103,6 +109,14 @@ class ServerWebsocket(WebSocketClient):
                 time.sleep(1)
             logger.info("%s: EOS received, we can close now" % self.request_id)
 
+    def _on_result(self, result, final):
+        self.last_decoder_message = time.time()
+        logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
+        processed_transcript = self.post_process(result)
+        logger.info("%s: Postprocessing done." % self.request_id)
+        event = dict(status=common.STATUS_SUCCESS,
+                     result=dict(hypotheses=[dict(transcript=processed_transcript)], final=final))
+        self.send(json.dumps(event))
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -169,7 +183,10 @@ def main():
 
     global SILENCE_TIMEOUT
     SILENCE_TIMEOUT = conf.get("silence-timeout", 5)
-    decoder_pipeline = DecoderPipeline(conf)
+    if USE_DECODER2:
+        decoder_pipeline = DecoderPipeline2(conf)
+    else:
+        decoder_pipeline = DecoderPipeline(conf)
 
     post_processor = None
     if "post-processor" in conf:

@@ -8,6 +8,24 @@ import sys
 import urllib
 import Queue
 import json
+import time
+
+
+def rate_limited(maxPerSecond):
+    minInterval = 1.0 / float(maxPerSecond)
+    def decorate(func):
+        lastTimeCalled = [0.0]
+        def rate_limited_function(*args,**kargs):
+            elapsed = time.clock() - lastTimeCalled[0]
+            leftToWait = minInterval - elapsed
+            if leftToWait>0:
+                time.sleep(leftToWait)
+            ret = func(*args,**kargs)
+            lastTimeCalled[0] = time.clock()
+            return ret
+        return rate_limited_function
+    return decorate
+
 
 class MyClient(WebSocketClient):
 
@@ -18,16 +36,16 @@ class MyClient(WebSocketClient):
         self.byterate = byterate
         self.final_hyp_queue = Queue.Queue()
 
+    @rate_limited(1)
+    def send_data(self, data):
+        self.send(data, binary=True)
+
     def opened(self):
         #print "Socket opened!"
         def send_data_to_ws():
             f = open(self.fn, "rb")
-            do_wait = False
             for block in iter(lambda: f.read(self.byterate), ""):
-                if do_wait:
-                    time.sleep(1)
-                self.send(block, binary=True)
-                do_wait = True
+                self.send_data(block)
             self.send("EOS")
 
         t = threading.Thread(target=send_data_to_ws)
@@ -39,10 +57,13 @@ class MyClient(WebSocketClient):
         #print >> sys.stderr, "RESPONSE:", response
         #print >> sys.stderr, "JSON was:", m
         if response['status'] == 0:
+            trans = response['result']['hypotheses'][0]['transcript']
             if response['result']['final']:
-                trans = response['result']['hypotheses'][0]['transcript']
                 #print >> sys.stderr, trans,
                 self.final_hyps.append(trans)
+            else:
+                print >> sys.stderr, trans,
+
 
 
     def get_full_hyp(self, timeout=60):

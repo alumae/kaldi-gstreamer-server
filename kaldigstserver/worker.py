@@ -182,7 +182,7 @@ def main():
         logging.config.dictConfig(conf["logging"])
 
     global USE_DECODER2
-    SILENCE_TIMEOUT = conf.get("use-decoder2", False)
+    USE_DECODER2 = conf.get("use-decoder2", False)
 
     global SILENCE_TIMEOUT
     SILENCE_TIMEOUT = conf.get("silence-timeout", 5)

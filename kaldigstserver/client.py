@@ -36,7 +36,7 @@ class MyClient(WebSocketClient):
         self.byterate = byterate
         self.final_hyp_queue = Queue.Queue()
 
-    @rate_limited(1)
+    @rate_limited(4)
     def send_data(self, data):
         self.send(data, binary=True)
 
@@ -44,7 +44,7 @@ class MyClient(WebSocketClient):
         #print "Socket opened!"
         def send_data_to_ws():
             f = open(self.fn, "rb")
-            for block in iter(lambda: f.read(self.byterate), ""):
+            for block in iter(lambda: f.read(self.byterate/4), ""):
                 self.send_data(block)
             self.send("EOS")
 
@@ -61,8 +61,12 @@ class MyClient(WebSocketClient):
             if response['result']['final']:
                 #print >> sys.stderr, trans,
                 self.final_hyps.append(trans)
+                print >> sys.stderr, '\r%s' % trans.replace("\n", "\\n")
             else:
-                print >> sys.stderr, trans,
+                print_trans = trans.replace("\n", "\\n")
+                if len(print_trans) > 80:
+                    print_trans = "... %s" % print_trans[-76:]
+                print >> sys.stderr, '\r%s' % print_trans,
 
 
 
@@ -88,7 +92,7 @@ def main():
         content_type = "audio/x-raw, layout=(string)interleaved, rate=(int)%d, format=(string)S16LE, channels=(int)1" %(args.rate/2)
 
 
-    ws = MyClient(args.audiofile, args.uri + '?%s' % (urllib.urlencode([("content-type", content_type)])))
+    ws = MyClient(args.audiofile, args.uri + '?%s' % (urllib.urlencode([("content-type", content_type)])), byterate=args.rate)
     ws.connect()
     result = ws.get_full_hyp()
     print result.encode('utf-8')

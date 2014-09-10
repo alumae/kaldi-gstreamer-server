@@ -180,9 +180,7 @@ class DecoderPipeline(object):
     def process_data(self, data):
         logger.debug('%s: Pushing buffer of size %d to pipeline' % (self.request_id, len(data)))
         buf = Gst.Buffer.new_allocate(None, len(data), None)
-        # FIXME: find more efficient way to do this
-        for (i, c) in enumerate(data):
-            buf.memset(i, c, 1)
+        buf.fill(0, data)
         self.appsrc.emit("push-buffer", buf)
 
 

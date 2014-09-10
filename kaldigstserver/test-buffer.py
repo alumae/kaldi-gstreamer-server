@@ -19,7 +19,7 @@ data = "1234" * 12
 print "Using data: %s" % data
 
 buf = Gst.Buffer.new_allocate(None, len(data), None)
-buf.fill(0, data, len(data))
+buf.fill(0, data)
 #for (i, c) in enumerate(data):
 #    buf.memset(i, c, 1)
 appsrc.emit("push-buffer", buf)

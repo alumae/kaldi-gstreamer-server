@@ -147,8 +147,8 @@ class DecoderPipeline2(object):
         self.pipeline.set_state(Gst.State.PLAYING)
         self.filesink.set_state(Gst.State.PLAYING)
         # push empty buffer (to avoid hang on client diconnect)
-        buf = Gst.Buffer.new_allocate(None, 0, None)
-        self.appsrc.emit("push-buffer", buf)
+        #buf = Gst.Buffer.new_allocate(None, 0, None)
+        #self.appsrc.emit("push-buffer", buf)
 
 
     def process_data(self, data):

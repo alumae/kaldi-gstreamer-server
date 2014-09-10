@@ -84,6 +84,31 @@ class DecoderPipeline2Tests(unittest.TestCase):
             time.sleep(1)
         self.assertEqual(["üks kaks kolm neli", "viis kuus seitse kaheksa"], self.final_hyps)
 
+    def test8k(self):
+        self.decoder_pipeline.init_request("test8k", "audio/x-raw, layout=(string)interleaved, rate=(int)8000, format=(string)S16LE, channels=(int)1")
+        f = open("test/data/1234-5678.8k.raw", "rb")
+        for block in iter(lambda: f.read(4000), ""):
+            time.sleep(0.25)
+            self.decoder_pipeline.process_data(block)
+
+        self.decoder_pipeline.end_request()
+
+
+        while not self.finished:
+            time.sleep(1)
+        self.assertEqual(["üks kaks kolm neli", "viis kuus seitse kaheksa"], self.final_hyps)
+
+    def testDisconnect(self):
+        self.decoder_pipeline.init_request("testDisconnect", "audio/x-raw, layout=(string)interleaved, rate=(int)8000, format=(string)S16LE, channels=(int)1")
+
+        self.decoder_pipeline.end_request()
+
+
+        while not self.finished:
+            time.sleep(1)
+        self.assertEqual([], self.final_hyps)
+
+
     def testWav(self):
         self.decoder_pipeline.init_request("testWav", "")
         f = open("test/data/test_with_silence.wav", "rb")

@@ -37,6 +37,9 @@ English models are based on Voxforge acoustic models and the CMU Sphinx  2013 ge
 The language models were heavily pruned so that the resulting FST cascade would be less than the
 100 MB GitHub file size limit.
 
+*Update:* the server also supports Kaldi's new "online2" online decoder that uses DNN-based acoustic models with i-vector input. See below on
+how to use it.
+
 
 Running the server
 ------------------

@@ -49,14 +49,22 @@ The following starts the main server on localhost:8888
 
 ### Running workers
 
+
 The master server doesn't perform speech recognition itself, it simply delegates client recognition
 requests to workers. You need one worker per recognition session. So, the number of running workers
 should be at least the number of potential concurrent recognition sessions. Good thing is that
 workers are fully independent and do not even have to be running on the same machine, thus
 offering practically unlimited parallelness.
 
-To run a worker, first write a configuration file. A sample configuration that uses the English
-models that come with this project is available in `sample_worker.yaml`.
+There are two decoders that a worker can use: based on the Kaldi `onlinegmmdecodefaster` GStreamer plugin
+or based on the newer `kaldinnet2onlinedecoder` plugin. The first one supports GMM models, the latter one needs
+"online2" DNN-based models with i-vector input.
+
+To run a worker, first write a configuration file. A sample configuration that uses the English GMM-HMM
+models that come with this project is available in `sample_worker.yaml`. A sample worker that uses
+"online2" DNN-based models is in `sample_english_nnet2.yaml`.
+
+#### Using the 'onlinegmmdecodefaster' based worker
 
 Before starting a worker, make sure that the GST plugin path includes Kaldi's `src/gst-plugin` directory
 (which should contain the file `libgstkaldi.so`), something like:
@@ -82,6 +90,32 @@ It might be a good idea to use [supervisord](http://supervisord.org) to start an
 several workers. A sample supervisord configuration file is in `etc/english-supervisord.conf`.
 
 
+#### Using the 'kaldinnet2onlinedecoder' based worker
+
+The DNN-based online decoder requires a newer GStreamer plugin that is not in the Kaldi codebase and has to be compiled
+seperately. It's available at https://github.com/alumae/gst-kaldi-nnet2-online. Clone it, e.g., under `~/tools/gst-kaldi-nnet2-online`.
+Follow the instuctions and compile it. This should result in a file `~/tools/gst-kaldi-nnet2-online/src/libgstkaldionline2.so`.
+
+Also, download the DNN-based models for English, trained on the Fisher speech corpus. Run the `download-fisher-nnet2.sh` under
+`test/models` to download the models from https://kaldo-asr.org:
+
+    ./test/models/download-fisher-nnet2.sh
+
+Before starting a worker, make sure that the GST plugin path includes the path where the `libgstkaldionline2.so` library you compiled earlier
+resides, something like:
+
+    export GST_PLUGIN_PATH=~/tools/gst-kaldi-nnet2-online/src
+
+Test if it worked:
+
+    gst-inspect-1.0 kaldinnet2onlinedecoder
+
+The latter should print out information about the new Kaldi's GStreamer plugin.
+
+Now, you can start a worker:
+
+    python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c sample_english_nnet2.yaml
+
 
 Server usage
 ------------
@@ -96,6 +130,10 @@ Expected output:
 
     THE. ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT.
 
+Expected output when using using the DNN-based online models based on Fisher:
+
+    one two or three you fall five six seven eight. yeah.
+
 The `-r 32000` in the last command tells the client to send audio to the server at 32000 bytes per second. The raw
 sample audio file uses a sample rate of 16k with a 16-bit encoding which results in a byterate of 32000.
 
@@ -104,7 +142,6 @@ You can also send ogg audio:
     python kaldigstserver/client.py -r 4800 test/data/english_test.ogg
 
 The rate in the last command is 4800. The bit rate of the ogg file is 37.5k, which results in a byte rate of 4800.
-
 
 
 Client-server protocol

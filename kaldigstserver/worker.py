@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5
 SILENCE_TIMEOUT = 5
-USE_DECODER2 = False
+USE_NNET2 = False
 
 class ServerWebsocket(WebSocketClient):
     STATE_CREATED = 0
@@ -41,7 +41,7 @@ class ServerWebsocket(WebSocketClient):
         WebSocketClient.__init__(self, url=uri)
         self.pipeline_initialized = False
         self.partial_transcript = ""
-        if USE_DECODER2:
+        if USE_NNET2:
             self.decoder_pipeline.set_result_handler(self._on_result)
         else:
             self.decoder_pipeline.set_word_handler(self._on_word)
@@ -181,12 +181,12 @@ def main():
     if "logging" in conf:
         logging.config.dictConfig(conf["logging"])
 
-    global USE_DECODER2
-    USE_DECODER2 = conf.get("use-decoder2", False)
+    global USE_NNET2
+    USE_NNET2 = conf.get("use-nnet2", False)
 
     global SILENCE_TIMEOUT
     SILENCE_TIMEOUT = conf.get("silence-timeout", 5)
-    if USE_DECODER2:
+    if USE_NNET2:
         decoder_pipeline = DecoderPipeline2(conf)
     else:
         decoder_pipeline = DecoderPipeline(conf)

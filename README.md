@@ -38,7 +38,8 @@ The language models were heavily pruned so that the resulting FST cascade would 
 100 MB GitHub file size limit.
 
 *Update:* the server also supports Kaldi's new "online2" online decoder that uses DNN-based acoustic models with i-vector input. See below on
-how to use it.
+how to use it. According to experiments on two Estonian online decoding setups, the DNN-based models result in about 20% (or more) relatively less
+errors than GMM-based models (e.g., WER fropped from 13% to 9%).
 
 
 Running the server

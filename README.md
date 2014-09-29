@@ -97,7 +97,7 @@ seperately. It's available at https://github.com/alumae/gst-kaldi-nnet2-online. 
 Follow the instuctions and compile it. This should result in a file `~/tools/gst-kaldi-nnet2-online/src/libgstkaldionline2.so`.
 
 Also, download the DNN-based models for English, trained on the Fisher speech corpus. Run the `download-fisher-nnet2.sh` under
-`test/models` to download the models from https://kaldo-asr.org:
+`test/models` to download the models from https://kaldi-asr.org:
 
     ./test/models/download-fisher-nnet2.sh
 

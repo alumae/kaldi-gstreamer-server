@@ -85,6 +85,20 @@ def run_async(func):
     return async_func
 
 
+def content_type_to_caps(content_type):
+    """
+    Converts MIME-style raw audio content type specifier to GStreamer CAPS string
+    """
+    default_attributes= {"rate": 16000, "format" : "S16LE", "channels" : 1, "layout" : "interleaved"}
+    media_type, _, attr_string = content_type.replace(";", ",").partition(",")
+    if media_type in ["audio/x-raw", "audio/x-raw-int"]:
+        media_type = "audio/x-raw"
+        attributes = default_attributes
+        for (key,_,value) in [p.partition("=") for p in attr_string.split(",")]:
+            attributes[key.strip()] = value.strip()
+    return "%s, %s" % (media_type, ", ".join(["%s=%s" % (key, value) for (key,value) in attributes.iteritems()]))
+
+
 @tornado.web.stream_request_body
 class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     """
@@ -92,12 +106,13 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     http://github.com/alumae/ruby-pocketsphinx-server.
     """
 
+
     def prepare(self):
         self.id = str(uuid.uuid4())
         self.final_hyp = ""
         self.final_result_queue = Queue()
-        self.user_id = self.get_argument("device-id", "none", True)
-        self.content_id = self.get_argument("content-id", "none", True)
+        self.user_id = self.request.headers.get("device-id", "none")
+        self.content_id = self.request.headers.get("content-id", "none")
         logging.info("%s: OPEN: user='%s', content='%s'" % (self.id, self.user_id, self.content_id))
         self.worker = None
         try:
@@ -106,8 +121,9 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
             logging.info("%s: Using worker %s" % (self.id, self.__str__()))
             self.worker.set_client_socket(self)
 
-            content_type = self.get_argument("Content-Type", None, True)
+            content_type = self.request.headers.get("Content-Type", None)
             if content_type:
+                content_type = content_type_to_caps(content_type)
                 logging.info("%s: Using content type: %s" % (self.id, content_type))
 
             self.worker.write_message(json.dumps(dict(id=self.id, content_type=content_type, user_id=self.user_id, content_id=self.content_id)))

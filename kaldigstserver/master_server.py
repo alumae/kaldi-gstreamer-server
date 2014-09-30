@@ -16,7 +16,6 @@ import threading
 import functools
 from Queue import Queue
 
-import tornado.escape
 import tornado.ioloop
 import tornado.options
 import tornado.web

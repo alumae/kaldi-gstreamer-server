@@ -135,9 +135,8 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
             self.finish("No workers available")
 
     def data_received(self, chunk):
-        logging.info("Received chunk of length %d" % len(chunk))
         assert self.worker is not None
-        logging.info("%s: Forwarding client message of length %d to worker" % (self.id, len(chunk)))
+        logging.debug("%s: Forwarding client message of length %d to worker" % (self.id, len(chunk)))
         self.worker.write_message(chunk, binary=True)
 
     def post(self, *args, **kwargs):

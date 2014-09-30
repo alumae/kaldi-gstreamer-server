@@ -156,12 +156,12 @@ class DecoderPipeline2(object):
         buf = Gst.Buffer.new_allocate(None, len(data), None)
         buf.fill(0, data)
         self.appsrc.emit("push-buffer", buf)
+        logger.debug('%s: Pushing buffer done' % self.request_id)
 
 
     def end_request(self):
         logger.info("%s: Pushing EOS to pipeline" % self.request_id)
-        self.pipeline.send_event(Gst.Event.new_eos())
-
+        self.appsrc.emit("end-of-stream")
 
     def set_result_handler(self, handler):
         self.result_handler = handler

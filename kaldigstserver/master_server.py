@@ -186,6 +186,10 @@ class ReferenceHandler(tornado.web.RequestHandler):
 
 
 class StatusSocketHandler(tornado.websocket.WebSocketHandler):
+    # needed for Tornado 4.0
+    def check_origin(self, origin):
+        return True
+
     def open(self):
         logging.info("New status listener")
         self.application.status_listeners.add(self)

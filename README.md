@@ -17,7 +17,7 @@ Installation
 
 #### Python 2.7 with the following packages:
 
-  * Tornado 3 or 4, see http://www.tornadoweb.org/en/stable/
+  * Tornado 4, see http://www.tornadoweb.org/en/stable/
   * ws4py
   * YAML
   * JSON

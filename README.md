@@ -148,7 +148,36 @@ You can also send ogg audio:
 The rate in the last command is 4800. The bit rate of the ogg file is 37.5k, which results in a byte rate of 4800.
 
 
-Client-server protocol
+Alternative usage through a HTTP API
+---------------------------------------
+
+One can also use the server through a very simple HTTP-based API. This allows to simply send audio via a PUT or POST request
+to http://server:port/client/dynamic/recognize and read the JSON ouput. Note that the JSON output is differently structured
+than the output of the websocket-based API. This interface is compatible to the one implemented by http://github.com/alumae/ruby-pocketsphinx-server.
+
+The HTTP API supports chunked transfer encoding which means that server can read and decode an audio stream before it is complete.
+
+Example:
+
+Send audio to server:
+
+     curl  -T test/data/english_test.wav  "http://localhost:8888/client/dynamic/recognize"
+
+Output:
+
+    {"status": 0, "hypotheses": [{"utterance": "one two or three you fall five six seven eight. [noise]."}], "id": "7851281f-e187-4c24-9b58-4f3a5cba3dce"}
+
+Send audio using chunked transfer encoding at an audio byte rate; you can see from the worker logs that decoding starts already when the first chunks
+have been received:
+
+    curl -v -T test/data/english_test.raw -H "Content-Type: audio/x-raw-int; rate=16000" --header "Transfer-Encoding: chunked" --limit-rate 32000  "http://localhost:8888/client/dynamic/recognize"
+
+Output (like before):
+
+    {"status": 0, "hypotheses": [{"utterance": "one two or three you fall five six seven eight. yeah."}], "id": "4e4594ee-bdb2-401f-8114-41a541d89eb8"}
+
+
+Websocket-based client-server protocol
 ----------------------
 
 ### Opening a session

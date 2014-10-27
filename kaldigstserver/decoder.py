@@ -136,16 +136,15 @@ class DecoderPipeline(object):
 
     def _on_eos(self, bus, msg):
         logger.info('%s: Pipeline received eos signal' % self.request_id)
-        #self.decodebin.unlink(self.audioconvert)
+        if self.eos_handler:
+            self.eos_handler[0](self.eos_handler[1])
 
+    def finish_request(self):
         if self.outdir:
             self.filesink.set_state(Gst.State.NULL)
             self.filesink.set_property('location', "/dev/null")
             self.filesink.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.NULL)
-
-        if self.eos_handler:
-            self.eos_handler[0](self.eos_handler[1])
         self.request_id = "<undefined>"
 
 

@@ -15,7 +15,7 @@ decoder:
 out-dir: tmp
 
 use-vad: False
-silence-timeout: 60
+silence-timeout: 10
 
 # Just a sample post-processor that appends "." to the hypothesis
 post-processor: perl -npe 'BEGIN {use IO::Handle; STDOUT->autoflush(1);} s/(.*)/\1./;'

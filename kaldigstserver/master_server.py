@@ -108,7 +108,6 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     http://github.com/alumae/ruby-pocketsphinx-server.
     """
 
-
     def prepare(self):
         self.id = str(uuid.uuid4())
         self.final_hyp = ""
@@ -287,6 +286,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         if self.worker:
             try:
                 self.worker.set_client_socket(None)
+                logging.info("%s: Closing worker connection" % self.id)
                 self.worker.close()
             except:
                 pass

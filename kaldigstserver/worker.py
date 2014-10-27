@@ -59,13 +59,12 @@ class ServerWebsocket(WebSocketClient):
         global SILENCE_TIMEOUT
         while self.state in [self.STATE_CONNECTED, self.STATE_INITIALIZED, self.STATE_PROCESSING]:
             if time.time() - self.last_decoder_message > SILENCE_TIMEOUT:
-                logger.warning("%s: More than %d seconds from last decoder activity, cancelling" % (self.request_id, SILENCE_TIMEOUT))
-                self.state = self.STATE_CANCELLING
-                self.decoder_pipeline.cancel()
+                logger.warning("%s: More than %d seconds from last decoder hypothesis update, cancelling" % (self.request_id, SILENCE_TIMEOUT))
+                self.finish_request()
                 event = dict(status=common.STATUS_NO_SPEECH)
                 self.send(json.dumps(event))
-                #self.close()
-            logger.debug("%s: Waiting for decoder end" % self.request_id)
+                self.close()
+            logger.debug("%s: Checking that decoder hasn't been silent for more than %d seconds" % (self.request_id, SILENCE_TIMEOUT))
             time.sleep(1)
 
 
@@ -90,23 +89,36 @@ class ServerWebsocket(WebSocketClient):
         else:
             if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED:
                 self.decoder_pipeline.process_data(m.data)
+                self.state = self.STATE_PROCESSING
             else:
                 logger.info("%s: Ignoring data, worker already in state %d" % (self.request_id, self.state))
 
 
-    def closed(self, code, reason=None):
-        logger.debug("%s: Websocket closed() called" % self.request_id)
+    def finish_request(self):
         if self.state == self.STATE_CONNECTED:
             # connection closed when we are not doing anything
+            self.decoder_pipeline.finish_request()
+            self.state = self.STATE_FINISHED
+            return
+        if self.state == self.STATE_INITIALIZED:
+            # connection closed when request initialized but with no data sent
+            self.decoder_pipeline.finish_request()
+            self.state = self.STATE_FINISHED
             return
         if self.state != self.STATE_FINISHED:
             logger.info("%s: Master disconnected before decoder reached EOS?" % self.request_id)
             self.state = self.STATE_CANCELLING
             self.decoder_pipeline.cancel()
             while self.state == self.STATE_CANCELLING:
-                logger.info("%s: Waiting for decoder EOS" % self.request_id)
+                logger.info("%s: Waiting for EOS from decoder" % self.request_id)
                 time.sleep(1)
+            self.decoder_pipeline.finish_request()
             logger.info("%s: EOS received, we can close now" % self.request_id)
+
+
+    def closed(self, code, reason=None):
+        logger.debug("%s: Websocket closed() called" % self.request_id)
+        self.finish_request()
 
     def _on_result(self, result, final):
         self.last_decoder_message = time.time()

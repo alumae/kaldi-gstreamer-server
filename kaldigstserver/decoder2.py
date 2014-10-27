@@ -110,15 +110,17 @@ class DecoderPipeline2(object):
     def _on_eos(self, bus, msg):
         logger.info('%s: Pipeline received eos signal' % self.request_id)
         #self.decodebin.unlink(self.audioconvert)
+        self.finish_request()
+        if self.eos_handler:
+            self.eos_handler[0](self.eos_handler[1])
 
+
+    def finish_request(self):
         if self.outdir:
             self.filesink.set_state(Gst.State.NULL)
             self.filesink.set_property('location', "/dev/null")
             self.filesink.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.NULL)
-
-        if self.eos_handler:
-            self.eos_handler[0](self.eos_handler[1])
         self.request_id = "<undefined>"
 
 
@@ -171,7 +173,7 @@ class DecoderPipeline2(object):
 
 
     def cancel(self):
-        logger.info("%s: Cancelling pipeline" % self.request_id)
+        logger.info("%s: Sending EOS to pipeline in order to cancel processing" % self.request_id)
         self.pipeline.send_event(Gst.Event.new_eos())
         #self.asr.set_property("silent", True)
         #self.pipeline.set_state(Gst.State.NULL)

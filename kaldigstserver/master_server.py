@@ -253,7 +253,10 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         return True
 
     def send_event(self, event):
-        logging.info("%s: Sending event %s to client" % (self.id, str(event)))
+        event_str = str(event)
+        if len(event_str) > 100:
+            event_str = event_str[:97] + "..."
+        logging.info("%s: Sending event %s to client" % (self.id, event_str))
         self.write_message(json.dumps(event))
 
     def open(self):
@@ -293,8 +296,11 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_message(self, message):
         assert self.worker is not None
-        logging.info("%s: Forwarding client message of length %d to worker" % (self.id, len(message)))
-        self.worker.write_message(message, binary=True)
+        logging.info("%s: Forwarding client message (%s) of length %d to worker" % (self.id, type(message), len(message)))
+        if isinstance(message, unicode):
+            self.worker.write_message(message, binary=False)
+        else:
+            self.worker.write_message(message, binary=True)
 
 
 def main():

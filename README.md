@@ -252,3 +252,16 @@ Client software
 
 Javascript client is available here: http://kaljurand.github.io/dictate.js
 
+Citing
+------
+
+If you use this software for research, you should acknowledge Kaldi. This Gstreamer-based server
+is described here (available here: http://ebooks.iospress.nl/volumearticle/37996):
+
+    @inproceedigs{
+      author={Tanel Alum\"{a}e},
+      title="Full-duplex Speech-to-text System for {Estonian}",
+      booktitle="Baltic HLT 2014",
+      year=2014,
+      address="Kaunas, Lihtuania"
+    }

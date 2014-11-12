@@ -72,6 +72,8 @@ class DecoderPipeline2Tests(unittest.TestCase):
 
     def test12345678(self):
         self.decoder_pipeline.init_request("test12345678", "audio/x-raw, layout=(string)interleaved, rate=(int)16000, format=(string)S16LE, channels=(int)1")
+        adaptation_state = open("test/data/adaptation_state.txt").read()
+        self.decoder_pipeline.set_adaptation_state(adaptation_state)
         f = open("test/data/1234-5678.raw", "rb")
         for block in iter(lambda: f.read(8000), ""):
             time.sleep(0.25)

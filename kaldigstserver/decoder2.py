@@ -114,6 +114,16 @@ class DecoderPipeline2(object):
         if self.eos_handler:
             self.eos_handler[0](self.eos_handler[1])
 
+    def get_adaptation_state(self):
+        return self.asr.get_property("adaptation-state")
+
+    def set_adaptation_state(self, adaptation_state):
+        """Sets the adaptation state to a certian value, previously retrieved using get_adaptation_state()
+
+        Should be called after init_request(..)
+        """
+
+        return self.asr.set_property("adaptation-state", adaptation_state)
 
     def finish_request(self):
         if self.outdir:
@@ -152,6 +162,8 @@ class DecoderPipeline2(object):
         #buf = Gst.Buffer.new_allocate(None, 0, None)
         #self.appsrc.emit("push-buffer", buf)
 
+        # reset adaptation state
+        self.set_adaptation_state("")
 
     def process_data(self, data):
         logger.debug('%s: Pushing buffer of size %d to pipeline' % (self.request_id, len(data)))

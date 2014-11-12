@@ -12,8 +12,12 @@ import json
 import sys
 import locale
 import codecs
+import zlib
+import base64
+import time
 
 from ws4py.client.threadedclient import WebSocketClient
+import ws4py.messaging
 
 from decoder import DecoderPipeline
 from decoder2 import DecoderPipeline2
@@ -88,8 +92,21 @@ class ServerWebsocket(WebSocketClient):
                 logger.info("%s: Ignoring EOS, worker already in state %d" % (self.request_id, self.state))
         else:
             if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED:
-                self.decoder_pipeline.process_data(m.data)
-                self.state = self.STATE_PROCESSING
+                if isinstance(m, ws4py.messaging.BinaryMessage):
+                    self.decoder_pipeline.process_data(m.data)
+                    self.state = self.STATE_PROCESSING
+                elif isinstance(m, ws4py.messaging.TextMessage):
+                    props = json.loads(str(m))
+                    if 'adaptation_state' in props:
+                        as_props = props['adaptation_state']
+                        if as_props.get('type', "") == "string+gzip+base64":
+                            adaptation_state = zlib.decompress(base64.b64decode(as_props.get('value', '')))
+                            logger.info("%s: Setting adaptation state to user-provided value" % (self.request_id))
+                            self.decoder_pipeline.set_adaptation_state(adaptation_state)
+                        else:
+                            logger.warning("%s: Cannot handle adaptation state type " % (self.request_id, as_props.get('type', "")))
+                    else:
+                        logger.warning("%s: Got JSON message but don't know what to do with it" % (self.request_id))
             else:
                 logger.info("%s: Ignoring data, worker already in state %d" % (self.request_id, self.state))
 
@@ -155,7 +172,17 @@ class ServerWebsocket(WebSocketClient):
     def _on_eos(self, data=None):
         self.last_decoder_message = time.time()
         self.state = self.STATE_FINISHED
+        self.send_adaptation_state()
         self.close()
+
+    def send_adaptation_state(self):
+        logger.info("%s: Sending adaptation state to client..." % (self.request_id))
+        adaptation_state = self.decoder_pipeline.get_adaptation_state()
+        event = dict(status=common.STATUS_SUCCESS,
+                     adaptation_state=dict(value=base64.b64encode(zlib.compress(adaptation_state)),
+                                           type="string+gzip+base64",
+                                           time=time.strftime("%Y-%m-%dT%H:%M:%S")))
+        self.send(json.dumps(event))
 
     def post_process(self, text):
         if self.post_processor:

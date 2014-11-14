@@ -213,10 +213,11 @@ This needs to be url-encoded of course, so the actual request is something like:
     ws://localhost:8888/client/ws/speech?content-type=audio/x-raw,+layout=(string)interleaved,+rate=(int)44100,+format=(string)S16LE,+channels=(int)1
 
 Audio can also be encoded using any codec recognized by GStreamer (assuming the needed packages are installed on the server).
+GStreamer should recognize the container and codec automatically from the stream, you don't have to specify the content type.
 E.g., to send audio encoded using the Speex codec in an Ogg container, use the following URL to open the session (server should
 automatically recognize the codec):
 
-    ws://localhost:8888/client/ws/speech?content-type=audio/ogg
+    ws://localhost:8888/client/ws/speech
 
 ### Sending audio
 

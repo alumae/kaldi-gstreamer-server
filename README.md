@@ -93,34 +93,6 @@ You can start any number of worker processes, just use the same command to start
 It might be a good idea to use [supervisord](http://supervisord.org) to start and stop the main server and
 several workers. A sample supervisord configuration file is in `etc/english-supervisord.conf`.
 
-
-#### Using the 'kaldinnet2onlinedecoder' based worker
-
-The DNN-based online decoder requires a newer GStreamer plugin that is not in the Kaldi codebase and has to be compiled
-seperately. It's available at https://github.com/alumae/gst-kaldi-nnet2-online. Clone it, e.g., under `~/tools/gst-kaldi-nnet2-online`.
-Follow the instuctions and compile it. This should result in a file `~/tools/gst-kaldi-nnet2-online/src/libgstkaldionline2.so`.
-
-Also, download the DNN-based models for English, trained on the Fisher speech corpus. Run the `download-fisher-nnet2.sh` under
-`test/models` to download the models from https://kaldi-asr.org:
-
-    ./test/models/download-fisher-nnet2.sh
-
-Before starting a worker, make sure that the GST plugin path includes the path where the `libgstkaldionline2.so` library you compiled earlier
-resides, something like:
-
-    export GST_PLUGIN_PATH=~/tools/gst-kaldi-nnet2-online/src
-
-Test if it worked:
-
-    gst-inspect-1.0 kaldinnet2onlinedecoder
-
-The latter should print out information about the new Kaldi's GStreamer plugin.
-
-Now, you can start a worker:
-
-    python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c sample_english_nnet2.yaml
-
-
 Server usage
 ------------
 
@@ -146,6 +118,56 @@ You can also send ogg audio:
     python kaldigstserver/client.py -r 4800 test/data/english_test.ogg
 
 The rate in the last command is 4800. The bit rate of the ogg file is 37.5k, which results in a byte rate of 4800.
+
+
+Using the 'kaldinnet2onlinedecoder' based worker
+------------------------------------------------
+
+The DNN-based online decoder requires a newer GStreamer plugin that is not in the Kaldi codebase and has to be compiled
+seperately. It's available at https://github.com/alumae/gst-kaldi-nnet2-online. Clone it, e.g., under `~/tools/gst-kaldi-nnet2-online`.
+Follow the instuctions and compile it. This should result in a file `~/tools/gst-kaldi-nnet2-online/src/libgstkaldionline2.so`.
+
+Also, download the DNN-based models for English, trained on the Fisher speech corpus. Run the `download-fisher-nnet2.sh` under
+`test/models` to download the models from https://kaldi-asr.org:
+
+    ./test/models/download-fisher-nnet2.sh
+
+Before starting a worker, make sure that the GST plugin path includes the path where the `libgstkaldionline2.so` library you compiled earlier
+resides, something like:
+
+    export GST_PLUGIN_PATH=~/tools/gst-kaldi-nnet2-online/src
+
+Test if it worked:
+
+    gst-inspect-1.0 kaldinnet2onlinedecoder
+
+The latter should print out information about the new Kaldi's GStreamer plugin.
+
+Now, you can start a worker:
+
+    python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c sample_english_nnet2.yaml
+
+#### Retrieving and sending adaptation state ####
+
+If you use the 'kaldinnet2onlinedecoder' based worker, you can retrieve the adaptation state after the decoding session
+finishes, and send the previously retrieved adaptation state when starting a new session.
+
+The 'kaldinnet2onlinedecoder' worker always sends the adaptation state encoded in a JSON container once the session ends. Client
+can store it in a file. This is functionality is implemented by the `client.py`. Assuming that you started the server and a worker as in the last
+example, you can do:
+
+    python kaldigstserver/client.py -r 32000 --save-adaptation-state adaptation-state.json test/data/english_test.wav
+
+The `adaptation-state.json` file will contain something like this:
+
+    {"type": "string+gzip+base64", "value": "eJxlvUuPdEmSHbavXx...", "time": "2014-11-14T11:08:49"}
+
+As you can see, the adaptation state is not human-readable, it's actually gzipped and base64-encoded text data.
+
+To start another decoding session using the saved adaptation state, you can do something like this:
+
+    python kaldigstserver/client.py -r 32000 --send-adaptation-state adaptation-state.json test/data/english_test.wav
+
 
 
 Alternative usage through a HTTP API
@@ -255,8 +277,8 @@ Javascript client is available here: http://kaljurand.github.io/dictate.js
 Citing
 ------
 
-If you use this software for research, you should acknowledge Kaldi. This Gstreamer-based server
-is described here (available here: http://ebooks.iospress.nl/volumearticle/37996):
+If you use this software for research, you can cite the paper where this software is
+described (available here: http://ebooks.iospress.nl/volumearticle/37996):
 
     @inproceedigs{
       author={Tanel Alum\"{a}e},
@@ -265,3 +287,5 @@ is described here (available here: http://ebooks.iospress.nl/volumearticle/37996
       year=2014,
       address="Kaunas, Lihtuania"
     }
+
+Of course, you should also acknowledge Kaldi, which does all the hard work.

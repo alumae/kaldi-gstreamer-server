@@ -9,7 +9,7 @@ import urllib
 import Queue
 import json
 import time
-
+import os
 
 def rate_limited(maxPerSecond):
     minInterval = 1.0 / float(maxPerSecond)
@@ -49,8 +49,12 @@ class MyClient(WebSocketClient):
             f = open(self.fn, "rb")
             if self.send_adaptation_state_filename is not None:
                 print >> sys.stderr, "Sending adaptation state from %s" % self.send_adaptation_state_filename
-                adaptation_state_props = json.load(open(self.send_adaptation_state_filename, "r"))
-                self.send(json.dumps(dict(adaptation_state=adaptation_state_props)))
+                try:
+                    adaptation_state_props = json.load(open(self.send_adaptation_state_filename, "r"))
+                    self.send(json.dumps(dict(adaptation_state=adaptation_state_props)))
+                except:
+                    e = sys.exc_info()[0]
+                    print >> sys.stderr, "Failed to send adaptation state: ",  e
             for block in iter(lambda: f.read(self.byterate/4), ""):
                 self.send_data(block)
             self.send("EOS")

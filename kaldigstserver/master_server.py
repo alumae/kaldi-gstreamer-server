@@ -104,7 +104,7 @@ def content_type_to_caps(content_type):
 @tornado.web.stream_request_body
 class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     """
-    Provides a HTTP POST/PUT interface supporting chunked transfer requests, similar to hat provided by
+    Provides a HTTP POST/PUT interface supporting chunked transfer requests, similar to that provided by
     http://github.com/alumae/ruby-pocketsphinx-server.
     """
 
@@ -186,7 +186,7 @@ class ReferenceHandler(tornado.web.RequestHandler):
         if content_id:
             content = codecs.decode(self.request.body, "utf-8")
             user_id = self.request.headers.get("User-Id", "")
-            self.application.save_reference(content_id, dict(content=content, user_id=user_id))
+            self.application.save_reference(content_id, dict(content=content, user_id=user_id, time=time.strftime("%Y-%m-%dT%H:%M:%S")))
             logging.info("Received reference text for content %s and user %s" % (content_id, user_id))
             self.set_header('Access-Control-Allow-Origin', '*')
         else:

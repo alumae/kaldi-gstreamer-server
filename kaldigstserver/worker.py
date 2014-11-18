@@ -47,6 +47,7 @@ class ServerWebsocket(WebSocketClient):
         self.partial_transcript = ""
         if USE_NNET2:
             self.decoder_pipeline.set_result_handler(self._on_result)
+            self.decoder_pipeline.set_error_handler(self._on_error)
         else:
             self.decoder_pipeline.set_word_handler(self._on_word)
         self.decoder_pipeline.set_eos_handler(self._on_eos)
@@ -180,6 +181,12 @@ class ServerWebsocket(WebSocketClient):
         self.last_decoder_message = time.time()
         self.state = self.STATE_FINISHED
         self.send_adaptation_state()
+        self.close()
+
+    def _on_error(self, error):
+        self.state = self.STATE_FINISHED
+        event = dict(status=common.STATUS_NOT_ALLOWED, message=error)
+        self.send(json.dumps(event))
         self.close()
 
     def send_adaptation_state(self):

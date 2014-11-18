@@ -187,7 +187,6 @@ class DecoderPipeline(object):
         logger.info("%s: Pushing EOS to pipeline" % self.request_id)
         self.pipeline.send_event(Gst.Event.new_eos())
 
-
     def set_word_handler(self, handler):
         self.word_handler = handler
 

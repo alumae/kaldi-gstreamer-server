@@ -25,6 +25,7 @@ class DecoderPipeline2(object):
 
         self.result_handler = None
         self.eos_handler = None
+        self.error_handler = None
         self.request_id = "<undefined>"
 
 
@@ -61,7 +62,6 @@ class DecoderPipeline2(object):
         self.appsrc.link(self.decodebin)
         #self.appsrc.link(self.audioconvert)
         self.decodebin.connect('pad-added', self._connect_decoder)
-
         self.audioconvert.link(self.audioresample)
 
         self.audioresample.link(self.tee)
@@ -84,6 +84,7 @@ class DecoderPipeline2(object):
 
         self.asr.connect('partial-result', self._on_partial_result)
         self.asr.connect('final-result', self._on_final_result)
+
         logger.info("Setting pipeline to READY")
         self.pipeline.set_state(Gst.State.READY)
         logger.info("Set pipeline to READY")
@@ -92,6 +93,7 @@ class DecoderPipeline2(object):
         logger.info("%s: Connecting audio decoder" % self.request_id)
         pad.link(self.audioconvert.get_static_pad("sink"))
         logger.info("%s: Connected audio decoder" % self.request_id)
+
 
     def _on_partial_result(self, asr, hyp):
         logger.info("%s: Got partial result: %s" % (self.request_id, hyp.decode('utf8')))
@@ -106,6 +108,9 @@ class DecoderPipeline2(object):
     def _on_error(self, bus, msg):
         self.error = msg.parse_error()
         logger.error(self.error)
+        self.finish_request()
+        if self.error_handler:
+            self.error_handler(self.error[0].message)
 
     def _on_eos(self, bus, msg):
         logger.info('%s: Pipeline received eos signal' % self.request_id)
@@ -182,6 +187,9 @@ class DecoderPipeline2(object):
 
     def set_eos_handler(self, handler, user_data=None):
         self.eos_handler = (handler, user_data)
+
+    def set_error_handler(self, handler):
+        self.error_handler = handler
 
 
     def cancel(self):

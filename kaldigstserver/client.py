@@ -84,6 +84,10 @@ class MyClient(WebSocketClient):
                     print >> sys.stderr, "Saving adaptation state to %s" % self.save_adaptation_state_filename
                     with open(self.save_adaptation_state_filename, "w") as f:
                         f.write(json.dumps(response['adaptation_state']))
+        else:
+            print >> sys.stderr, "Received error from server (status %d)" % response['status']
+            if 'message' in response:
+                print >> sys.stderr, "Error message:",  response['message']
 
 
     def get_full_hyp(self, timeout=60):

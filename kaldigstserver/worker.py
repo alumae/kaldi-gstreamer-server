@@ -126,7 +126,14 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Master disconnected before decoder reached EOS?" % self.request_id)
             self.state = self.STATE_CANCELLING
             self.decoder_pipeline.cancel()
+            counter = 0
             while self.state == self.STATE_CANCELLING:
+                counter += 1
+                if counter > 30:
+                    # lost hope that the decoder will ever finish, likely it has hung
+                    # FIXME: this might introduce new bugs
+                    logger.info("%s: Giving up waiting after %d tries" % (self.request_id, counter))
+                    self.state = self.STATE_FINISHED
                 logger.info("%s: Waiting for EOS from decoder" % self.request_id)
                 time.sleep(1)
             self.decoder_pipeline.finish_request()

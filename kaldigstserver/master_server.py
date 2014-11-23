@@ -169,11 +169,19 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         logging.info("Everything done")
 
     def send_event(self, event):
-        logging.info("%s: Receiving event %s from worker" % (self.id, str(event)))
-        if event["status"] == 0 and len(event["result"]["hypotheses"]) > 0 and event["result"]["final"]:
-            if len(self.final_hyp) > 0:
-                self.final_hyp += " "
-            self.final_hyp += event["result"]["hypotheses"][0]["transcript"]
+        event_str = str(event)
+        if len(event_str) > 100:
+            event_str = event_str[:97] + "..."
+        logging.info("%s: Receiving event %s from worker" % (self.id, event_str))
+        if event["status"] == 0 and ("result" in event):
+            try:
+                if len(event["result"]["hypotheses"]) > 0 and event["result"]["final"]:
+                    if len(self.final_hyp) > 0:
+                        self.final_hyp += " "
+                    self.final_hyp += event["result"]["hypotheses"][0]["transcript"]
+            except:
+                e = sys.exc_info()[0]
+                loggin.warn("Failed to extract hypothesis from recognition result:", e)
 
     def close(self):
         logging.info("%s: Receiving 'close' from worker" % (self.id))

@@ -18,9 +18,14 @@ Installation
 #### Python 2.7 with the following packages:
 
   * Tornado 4, see http://www.tornadoweb.org/en/stable/
-  * ws4py
+  * ws4py (3.0 .. 3.2.0)
   * YAML
   * JSON
+
+*NB!*: The server doesn't work quite correctly with ws4py 3.5.0 because of a bug I reported here: https://github.com/Lawouach/WebSocket-for-Python/issues/152.
+Use ws4py 3.2.0 instead. To install ws4py 3.2.0 using `pip`, run:
+
+    pip install ws4py==3.2.0
 
 
 #### Kaldi

@@ -16,6 +16,7 @@ import zlib
 import base64
 import time
 
+
 from ws4py.client.threadedclient import WebSocketClient
 import ws4py.messaging
 
@@ -69,6 +70,7 @@ class ServerWebsocket(WebSocketClient):
                 event = dict(status=common.STATUS_NO_SPEECH)
                 self.send(json.dumps(event))
                 self.close()
+                return
             logger.debug("%s: Checking that decoder hasn't been silent for more than %d seconds" % (self.request_id, SILENCE_TIMEOUT))
             time.sleep(1)
 
@@ -135,15 +137,17 @@ class ServerWebsocket(WebSocketClient):
                     # FIXME: this might introduce new bugs
                     logger.info("%s: Giving up waiting after %d tries" % (self.request_id, counter))
                     self.state = self.STATE_FINISHED
-                logger.info("%s: Waiting for EOS from decoder" % self.request_id)
-                time.sleep(1)
+                else:
+                    logger.info("%s: Waiting for EOS from decoder" % self.request_id)
+                    time.sleep(1)
             self.decoder_pipeline.finish_request()
-            logger.info("%s: EOS received, we can close now" % self.request_id)
+            logger.info("%s: Finished waiting for EOS" % self.request_id)
 
 
     def closed(self, code, reason=None):
         logger.debug("%s: Websocket closed() called" % self.request_id)
         self.finish_request()
+        logger.debug("%s: Websocket closed() finished" % self.request_id)
 
     def _on_result(self, result, final):
         self.last_decoder_message = time.time()
@@ -152,7 +156,11 @@ class ServerWebsocket(WebSocketClient):
         logger.info("%s: Postprocessing done." % self.request_id)
         event = dict(status=common.STATUS_SUCCESS,
                      result=dict(hypotheses=[dict(transcript=processed_transcript)], final=final))
-        self.send(json.dumps(event))
+        try:
+            self.send(json.dumps(event))
+        except:
+            e = sys.exc_info()[1]
+            logger.warning("Failed to send event to master: %s" % e)
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -186,7 +194,11 @@ class ServerWebsocket(WebSocketClient):
     def _on_error(self, error):
         self.state = self.STATE_FINISHED
         event = dict(status=common.STATUS_NOT_ALLOWED, message=error)
-        self.send(json.dumps(event))
+        try:
+            self.send(json.dumps(event))
+        except:
+            e = sys.exc_info()[1]
+            logger.warning("Failed to send event to master: %s" % e)
         self.close()
 
     def send_adaptation_state(self):
@@ -196,7 +208,12 @@ class ServerWebsocket(WebSocketClient):
                      adaptation_state=dict(value=base64.b64encode(zlib.compress(adaptation_state)),
                                            type="string+gzip+base64",
                                            time=time.strftime("%Y-%m-%dT%H:%M:%S")))
-        self.send(json.dumps(event))
+        try:
+            self.send(json.dumps(event))
+        except:
+            e = sys.exc_info()[1]
+            logger.warning("Failed to send event to master: " + str(e))
+
 
     def post_process(self, text):
         if self.post_processor:

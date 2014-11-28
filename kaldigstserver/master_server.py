@@ -6,6 +6,7 @@
 Reads speech data via websocket requests, sends it to Redis, waits for results from Redis and
 forwards to client via websocket
 """
+import sys
 import logging
 import json
 import codecs
@@ -116,6 +117,8 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         self.content_id = self.request.headers.get("content-id", "none")
         logging.info("%s: OPEN: user='%s', content='%s'" % (self.id, self.user_id, self.content_id))
         self.worker = None
+        self.error_status = 0
+        self.error_message = None
         try:
             self.worker = self.application.available_workers.pop()
             self.application.send_status_update()
@@ -157,10 +160,14 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         self.worker.write_message("EOS", binary=True)
         logging.info("%s: yielding..." % self.id)
         hyp = yield tornado.gen.Task(self.get_final_hyp)
-
-        logging.info("%s: Final hyp: %s" % (self.id, hyp))
-        response = {"status" : 0, "id": self.id, "hypotheses": [{"utterance" : hyp}]}
-        self.write(response)
+        if self.error_status == 0:
+            logging.info("%s: Final hyp: %s" % (self.id, hyp))
+            response = {"status" : 0, "id": self.id, "hypotheses": [{"utterance" : hyp}]}
+            self.write(response)
+        else:
+            logging.info("%s: Error (status=%d) processing HTTP request: %s" % (self.id, self.error_status, self.error_message))
+            response = {"status" : self.error_status, "id": self.id, "message": self.error_message}
+            self.write(response)
         self.application.num_requests_processed += 1
         self.application.send_status_update()
         self.worker.set_client_socket(None)
@@ -181,7 +188,10 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
                     self.final_hyp += event["result"]["hypotheses"][0]["transcript"]
             except:
                 e = sys.exc_info()[0]
-                loggin.warn("Failed to extract hypothesis from recognition result:", e)
+                logging.warn("Failed to extract hypothesis from recognition result:" + e)
+        elif event["status"] != 0:
+            self.error_status = event["status"]
+            self.error_message = event.get("message", "")
 
     def close(self):
         logging.info("%s: Receiving 'close' from worker" % (self.id))

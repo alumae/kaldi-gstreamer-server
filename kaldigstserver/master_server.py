@@ -279,9 +279,10 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         self.id = str(uuid.uuid4())
+        logging.info("%s: OPEN" % (self.id))
+        logging.info("%s: Request arguments: %s" % (self.id, " ".join(["%s=\"%s\"" % (a, self.get_argument(a)) for a in self.request.arguments])))
         self.user_id = self.get_argument("user-id", "none", True)
         self.content_id = self.get_argument("content-id", "none", True)
-        logging.info("%s: OPEN: user='%s', content='%s'" % (self.id, self.user_id, self.content_id))
         self.worker = None
         try:
             self.worker = self.application.available_workers.pop()

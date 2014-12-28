@@ -227,7 +227,7 @@ automatically recognize the codec):
 ### Sending audio
 
 Speech should be sent to the server in raw blocks of data, using the encoding specified when session was opened.
-It is recommended that a new block is sent at least 4 times per second (less infrequent blocks would increase the recognition lag).
+It is recommended that a new block is sent at least 4 times per second (less frequent blocks would increase the recognition lag).
 Blocks do not have to be of equal size.
 
 After the last block of speech data, a special 3-byte ANSI-encoded string "EOS"  ("end-of-stream") needs to be sent to the server. This tells the
@@ -256,7 +256,7 @@ The following status codes are currently in use:
   * 0 -- Success. Usually used when recognition results are sent
   * 2 -- Aborted. Recognition was aborted for some reason.
   * 1 -- No speech. Sent when the incoming audio contains a large portion of silence or non-speech.
-  * 9 -- Not avalailable. Used when all recognizer processes are currently in use and recognition cannot be performed.
+  * 9 -- Not available. Used when all recognizer processes are currently in use and recognition cannot be performed.
 
 Websocket is always closed by the server after sending a non-zero status update.
 

@@ -68,7 +68,10 @@ class ServerWebsocket(WebSocketClient):
                 logger.warning("%s: More than %d seconds from last decoder hypothesis update, cancelling" % (self.request_id, SILENCE_TIMEOUT))
                 self.finish_request()
                 event = dict(status=common.STATUS_NO_SPEECH)
-                self.send(json.dumps(event))
+                try:
+                    self.send(json.dumps(event))
+                except:
+                    logger.warning("%s: Failed to send error event to master" % (self.request_id))
                 self.close()
                 return
             logger.debug("%s: Checking that decoder hasn't been silent for more than %d seconds" % (self.request_id, SILENCE_TIMEOUT))

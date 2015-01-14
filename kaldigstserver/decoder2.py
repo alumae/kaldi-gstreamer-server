@@ -131,6 +131,7 @@ class DecoderPipeline2(object):
         return self.asr.set_property("adaptation-state", adaptation_state)
 
     def finish_request(self):
+        logger.info("%s: Resetting decoder state" % self.request_id)
         if self.outdir:
             self.filesink.set_state(Gst.State.NULL)
             self.filesink.set_property('location', "/dev/null")

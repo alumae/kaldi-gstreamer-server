@@ -195,7 +195,7 @@ class DecoderPipeline2(object):
 
     def cancel(self):
         logger.info("%s: Sending EOS to pipeline in order to cancel processing" % self.request_id)
-        self.pipeline.send_event(Gst.Event.new_eos())
+        self.appsrc.emit("end-of-stream")
         #self.asr.set_property("silent", True)
         #self.pipeline.set_state(Gst.State.NULL)
 

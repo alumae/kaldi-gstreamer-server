@@ -91,13 +91,13 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Initialized request" % self.request_id)
             self.state = self.STATE_INITIALIZED
         elif m.data == "EOS":
-            if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED:
+            if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED and self.state != self.STATE_FINISHED:
                 self.decoder_pipeline.end_request()
                 self.state = self.STATE_EOS_RECEIVED
             else:
                 logger.info("%s: Ignoring EOS, worker already in state %d" % (self.request_id, self.state))
         else:
-            if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED:
+            if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED and self.state != self.STATE_FINISHED:
                 if isinstance(m, ws4py.messaging.BinaryMessage):
                     self.decoder_pipeline.process_data(m.data)
                     self.state = self.STATE_PROCESSING

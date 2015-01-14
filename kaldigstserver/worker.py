@@ -279,7 +279,8 @@ def main():
         except Exception:
             logger.error("Couldn't connect to server, waiting for %d seconds", CONNECT_TIMEOUT)
             time.sleep(CONNECT_TIMEOUT)
-
+        # fixes a race condition
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()

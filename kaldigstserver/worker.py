@@ -205,17 +205,20 @@ class ServerWebsocket(WebSocketClient):
         self.close()
 
     def send_adaptation_state(self):
-        logger.info("%s: Sending adaptation state to client..." % (self.request_id))
-        adaptation_state = self.decoder_pipeline.get_adaptation_state()
-        event = dict(status=common.STATUS_SUCCESS,
-                     adaptation_state=dict(value=base64.b64encode(zlib.compress(adaptation_state)),
-                                           type="string+gzip+base64",
-                                           time=time.strftime("%Y-%m-%dT%H:%M:%S")))
-        try:
-            self.send(json.dumps(event))
-        except:
-            e = sys.exc_info()[1]
-            logger.warning("Failed to send event to master: " + str(e))
+        if hasattr(self.decoder_pipeline, 'get_adaptation_state'):
+            logger.info("%s: Sending adaptation state to client..." % (self.request_id))
+            adaptation_state = self.decoder_pipeline.get_adaptation_state()
+            event = dict(status=common.STATUS_SUCCESS,
+                         adaptation_state=dict(value=base64.b64encode(zlib.compress(adaptation_state)),
+                                               type="string+gzip+base64",
+                                               time=time.strftime("%Y-%m-%dT%H:%M:%S")))
+            try:
+                self.send(json.dumps(event))
+            except:
+                e = sys.exc_info()[1]
+                logger.warning("Failed to send event to master: " + str(e))
+        else:
+            logger.info("%s: Adaptation state not supported by the decoder, not sending it." % (self.request_id))    
 
 
     def post_process(self, text):

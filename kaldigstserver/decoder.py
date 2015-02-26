@@ -130,23 +130,28 @@ class DecoderPipeline(object):
         if self.word_handler:
             self.word_handler(word)
 
+
     def _on_error(self, bus, msg):
         self.error = msg.parse_error()
         logger.error(self.error)
+        self.finish_request()
+        if self.error_handler:
+            self.error_handler(self.error[0].message)
 
     def _on_eos(self, bus, msg):
         logger.info('%s: Pipeline received eos signal' % self.request_id)
+        self.finish_request()
         if self.eos_handler:
             self.eos_handler[0](self.eos_handler[1])
 
     def finish_request(self):
+        logger.info('%s: Finishing request' % self.request_id)
         if self.outdir:
             self.filesink.set_state(Gst.State.NULL)
             self.filesink.set_property('location', "/dev/null")
             self.filesink.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.NULL)
         self.request_id = "<undefined>"
-
 
     def init_request(self, id, caps_str):
         self.request_id = id
@@ -174,6 +179,7 @@ class DecoderPipeline(object):
         # push empty buffer (to avoid hang on client diconnect)
         buf = Gst.Buffer.new_allocate(None, 0, None)
         self.appsrc.emit("push-buffer", buf)
+        logger.info('%s: Pipeline initialized' % (self.request_id))
 
 
     def process_data(self, data):
@@ -185,13 +191,16 @@ class DecoderPipeline(object):
 
     def end_request(self):
         logger.info("%s: Pushing EOS to pipeline" % self.request_id)
-        self.pipeline.send_event(Gst.Event.new_eos())
+        self.appsrc.emit("end-of-stream")
 
     def set_word_handler(self, handler):
         self.word_handler = handler
 
     def set_eos_handler(self, handler, user_data=None):
         self.eos_handler = (handler, user_data)
+
+    def set_error_handler(self, handler):
+        self.error_handler = handler
 
 
     def cancel(self):

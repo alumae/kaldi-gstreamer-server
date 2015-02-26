@@ -51,6 +51,7 @@ class ServerWebsocket(WebSocketClient):
             self.decoder_pipeline.set_error_handler(self._on_error)
         else:
             self.decoder_pipeline.set_word_handler(self._on_word)
+            self.decoder_pipeline.set_error_handler(self._on_error)
         self.decoder_pipeline.set_eos_handler(self._on_eos)
         self.state = self.STATE_CREATED
         self.last_decoder_message = time.time()

@@ -286,7 +286,7 @@ Citing
 If you use this software for research, you can cite the paper where this software is
 described (available here: http://ebooks.iospress.nl/volumearticle/37996):
 
-    @inproceedigs{
+    @inproceedigs{alumae2014,
       author={Tanel Alum\"{a}e},
       title="Full-duplex Speech-to-text System for {Estonian}",
       booktitle="Baltic HLT 2014",

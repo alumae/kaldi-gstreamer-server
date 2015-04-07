@@ -132,10 +132,10 @@ The DNN-based online decoder requires a newer GStreamer plugin that is not in th
 seperately. It's available at https://github.com/alumae/gst-kaldi-nnet2-online. Clone it, e.g., under `~/tools/gst-kaldi-nnet2-online`.
 Follow the instuctions and compile it. This should result in a file `~/tools/gst-kaldi-nnet2-online/src/libgstkaldionline2.so`.
 
-Also, download the DNN-based models for English, trained on the Fisher speech corpus. Run the `download-fisher-nnet2.sh` under
-`test/models` to download the models from https://kaldi-asr.org:
+Also, download the DNN-based models for English, trained on the TEDLIUM speech corpus and combined with a generic English language model
+provided by Cantab Research. Run the `download-tedlium-nnet2.sh` under `test/models` to download the models (attention, 1.5 GB):
 
-    ./test/models/download-fisher-nnet2.sh
+    ./test/models/download-tedlium-nnet2.sh
 
 Before starting a worker, make sure that the GST plugin path includes the path where the `libgstkaldionline2.so` library you compiled earlier
 resides, something like:
@@ -151,6 +151,21 @@ The latter should print out information about the new Kaldi's GStreamer plugin.
 Now, you can start a worker:
 
     python kaldigstserver/worker.py -u ws://localhost:8888/worker/ws/speech -c sample_english_nnet2.yaml
+
+As the acoustic models are trained on TED data, we also test on TED data. The file `test/data/bill_gates-TED.mp3` contains about one
+minute of a TED talk by Bill Gates. It's encoded as 64 kb MP3, so let's send it to the server at 64*1024/8=8192 bytes per second:
+
+    python kaldigstserver/client.py -r 8192 test/data/bill_gates-TED.mp3
+
+Recognized words should start appearing at the terminal. The final result should be something like:
+
+> when i was a kid the disaster we worry about most was a nuclear war. that's why we had a bear like this down our basement filled with cans of food and water. nuclear attack came we were supposed to go downstairs hunker down and eat out of that barrel. today the greatest risk of global catastrophe. don't look like this instead it looks like this. if anything kills over ten million people in the next few decades it's most likely to be a highly infectious virus rather than a war. not missiles that microbes now part of the reason for this is that we have invested a huge amount in nuclear deterrence we've actually invested very little in a system to stop an epidemic. we're not ready for the next epidemic.
+
+Compare that to the original transcript in `test/data/bill_gates-TED.txt`:
+
+> When I was a kid, the disaster we worried about most was a nuclear war. That's why we had a barrel like this down in our basement, filled with cans of food and water. When the nuclear attack came, we were supposed to go downstairs, hunker down, and eat out of that barrel.
+> Today the greatest risk of global catastrophe doesn't look like this. Instead, it looks like this. If anything kills over 10 million people in the next few decades, it's most likely to be a highly infectious virus rather than a war. Not missiles, but microbes. Now, part of the reason for this is that we've invested a huge amount in nuclear deterrents. But we've actually invested very little in a system to stop an epidemic. We're not ready for the next epidemic.
+
 
 #### Retrieving and sending adaptation state ####
 

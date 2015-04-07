@@ -57,6 +57,7 @@ class MyClient(WebSocketClient):
                     print >> sys.stderr, "Failed to send adaptation state: ",  e
             for block in iter(lambda: f.read(self.byterate/4), ""):
                 self.send_data(block)
+            print >> sys.stderr, "Audio sent, now sending EOS"
             self.send("EOS")
 
         t = threading.Thread(target=send_data_to_ws)

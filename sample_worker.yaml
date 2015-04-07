@@ -23,7 +23,7 @@ logging:
         console:
             class: logging.StreamHandler
             formatter: simpleFormater
-            level: INFO
+            level: DEBUG
     root:
-        level: INFO
+        level: DEBUG
         handlers: [console]

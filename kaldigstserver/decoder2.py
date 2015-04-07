@@ -42,9 +42,14 @@ class DecoderPipeline2(object):
         self.asr = Gst.ElementFactory.make("kaldinnet2onlinedecoder", "asr")
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
 
+        # This needs to be set first
+        if "use-threaded-decoder" in conf["decoder"]:
+            self.asr.set_property("use-threaded-decoder", conf["decoder"]["use-threaded-decoder"])
+
         for (key, val) in conf.get("decoder", {}).iteritems():
-            logger.info("Setting decoder property: %s = %s" % (key, val))
-            self.asr.set_property(key, val)
+            if key != "use-threaded-decoder":
+                logger.info("Setting decoder property: %s = %s" % (key, val))
+                self.asr.set_property(key, val)
 
         self.appsrc.set_property("is-live", True)
         self.filesink.set_property("location", "/dev/null")

@@ -10,6 +10,10 @@ the client via the same websocket, thus enabling full-duplex communication (as i
 voice typing in Android). Client can be implemented in Javascript, thus enabling browser-based
 speech recognition.
 
+English demo that uses the server: http://bark.phon.ioc.ee/dictate/
+
+Estonian demo: http://bark.phon.ioc.ee/dikteeri/
+
 Installation
 ------------
 

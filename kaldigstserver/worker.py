@@ -57,6 +57,7 @@ class ServerWebsocket(WebSocketClient):
         self.last_decoder_message = time.time()
         self.request_id = "<undefined>"
         self.timeout_decoder = 5
+        self.num_segments = 0
 
     def opened(self):
         logger.info("Opened websocket connection to server")
@@ -85,6 +86,7 @@ class ServerWebsocket(WebSocketClient):
             props = json.loads(str(m))
             content_type = props['content_type']
             self.request_id = props['id']
+            self.num_segments = 0
             self.decoder_pipeline.init_request(self.request_id, content_type)
             self.last_decoder_message = time.time()
             thread.start_new_thread(self.guard_timeout, ())
@@ -159,12 +161,15 @@ class ServerWebsocket(WebSocketClient):
         processed_transcript = self.post_process(result)
         logger.info("%s: Postprocessing done." % self.request_id)
         event = dict(status=common.STATUS_SUCCESS,
+                     segment=self.num_segments,
                      result=dict(hypotheses=[dict(transcript=processed_transcript)], final=final))
         try:
             self.send(json.dumps(event))
         except:
             e = sys.exc_info()[1]
             logger.warning("Failed to send event to master: %s" % e)
+        if final:
+            self.num_segments += 1
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -177,6 +182,7 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Postprocessing done." % self.request_id)
 
             event = dict(status=common.STATUS_SUCCESS,
+                         segment=self.num_segments,
                          result=dict(hypotheses=[dict(transcript=processed_transcript)], final=False))
             self.send(json.dumps(event))
         else:
@@ -184,9 +190,11 @@ class ServerWebsocket(WebSocketClient):
             processed_transcript = self.post_process(self.partial_transcript)
             logger.info("%s: Postprocessing done." % self.request_id)
             event = dict(status=common.STATUS_SUCCESS,
+                         segment=self.num_segments,
                          result=dict(hypotheses=[dict(transcript=processed_transcript)], final=True))
             self.send(json.dumps(event))
             self.partial_transcript = ""
+            self.num_segments += 1
 
 
     def _on_eos(self, data=None):
@@ -210,7 +218,8 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Sending adaptation state to client..." % (self.request_id))
             adaptation_state = self.decoder_pipeline.get_adaptation_state()
             event = dict(status=common.STATUS_SUCCESS,
-                         adaptation_state=dict(value=base64.b64encode(zlib.compress(adaptation_state)),
+                         adaptation_state=dict(id=self.request_id,
+                                               value=base64.b64encode(zlib.compress(adaptation_state)),
                                                type="string+gzip+base64",
                                                time=time.strftime("%Y-%m-%dT%H:%M:%S")))
             try:

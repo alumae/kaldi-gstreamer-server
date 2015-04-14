@@ -271,6 +271,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         return True
 
     def send_event(self, event):
+        event["id"] = self.id
         event_str = str(event)
         if len(event_str) > 100:
             event_str = event_str[:97] + "..."

@@ -1,14 +1,23 @@
 Kaldi GStreamer server
 ======================
 
-This is an implementation of a real-time full-duplex speech recognition server, based on
-the Kaldi toolkit and the GStreamer framework.
+This is a real-time full-duplex speech recognition server, based on
+the Kaldi toolkit and the GStreamer framework and implemented in Python.
 
-Communication with the server is based on websockets. Client sends speech to the server using
-small chunks, while the server sends partial and full recognition hypotheses back to
-the client via the same websocket, thus enabling full-duplex communication (as in Google's
-voice typing in Android). Client can be implemented in Javascript, thus enabling browser-based
-speech recognition.
+Features
+--------
+
+  * Full duplex communication based on websockets: speech goes in, partial hypotheses come out (think of Android's voice typing)
+  * Very scalable: the server consists of a master component and workers; one worker is needed per concurrent recognition session; workers can be
+    started and stopped independently of the master on remote machines
+  * Can do speech segmentation, i.e., a long speech signal is broken into shorter segments based on silences
+  * Supports arbitrarily long speech input (e.g., you can stream live speech into it)
+  * Supports Kaldi's GMM and "online DNN" models
+  * Supports rescoring of the recognition lattice with a large language model
+  * Supports persisting the acoustic model adaptation state between requests
+  * Supports unlimited set of audio codecs (actually only those supported by GStreamer)
+  * Supports rewriting raw recognition results using external programs (can be used for converting words to numbers, etc)
+  * Python, Java, Javascript clients are available
 
 English demo that uses the server: http://bark.phon.ioc.ee/dictate/
 

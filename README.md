@@ -35,7 +35,7 @@ Installation
   * YAML
   * JSON
 
-*NB!*: The server doesn't work quite correctly with ws4py 3.5.0 because of a bug I reported here: https://github.com/Lawouach/WebSocket-for-Python/issues/152.
+*NB!*: The server doesn't work quite correctly with ws4py 0.3.5 because of a bug I reported here: https://github.com/Lawouach/WebSocket-for-Python/issues/152.
 Use ws4py 0.3.2 instead. To install ws4py 0.3.2 using `pip`, run:
 
     pip install ws4py==0.3.2

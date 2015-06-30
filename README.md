@@ -30,7 +30,7 @@ Changelog
   Full results can include things like n-best hypotheses, word and phone alignment information, 
   and possibly other things in the future. You have to upgrade gst-kaldi-nnet2-online (when using this plugin instead of
   the GMM-based Kaldi GStreamer plugin) prior to using this. Also added a sample full results post-processing
-  script `sample_full_post_processor.py`.
+  script `sample_full_post_processor.py` (see `sample_english_nnet2.yaml` on how to use it).
   
   
 

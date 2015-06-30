@@ -28,8 +28,8 @@ class DecoderPipeline2(object):
         elif not os.path.isdir(self.outdir):
             raise Exception("Output directory %s already exists as a file" % self.outdir)
 
-
         self.result_handler = None
+        self.full_result_handler = None
         self.eos_handler = None
         self.error_handler = None
         self.request_id = "<undefined>"
@@ -95,6 +95,7 @@ class DecoderPipeline2(object):
 
         self.asr.connect('partial-result', self._on_partial_result)
         self.asr.connect('final-result', self._on_final_result)
+        self.asr.connect('full-final-result', self._on_full_final_result)
 
         logger.info("Setting pipeline to READY")
         self.pipeline.set_state(Gst.State.READY)
@@ -115,6 +116,11 @@ class DecoderPipeline2(object):
         logger.info("%s: Got final result: %s" % (self.request_id, hyp.decode('utf8')))
         if self.result_handler:
             self.result_handler(hyp, True)
+
+    def _on_full_final_result(self, asr, result_json):
+        logger.info("%s: Got full final result: %s" % (self.request_id, result_json.decode('utf8')))
+        if self.full_result_handler:
+            self.full_result_handler(result_json)
 
     def _on_error(self, bus, msg):
         self.error = msg.parse_error()
@@ -196,6 +202,9 @@ class DecoderPipeline2(object):
 
     def set_result_handler(self, handler):
         self.result_handler = handler
+
+    def set_full_result_handler(self, handler):
+        self.full_result_handler = handler
 
     def set_eos_handler(self, handler, user_data=None):
         self.eos_handler = (handler, user_data)

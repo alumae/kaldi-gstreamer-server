@@ -39,15 +39,17 @@ class ServerWebsocket(WebSocketClient):
     STATE_CANCELLING = 8
     STATE_FINISHED = 100
 
-    def __init__(self, uri, decoder_pipeline, post_processor):
+    def __init__(self, uri, decoder_pipeline, post_processor, full_post_processor=None):
         self.uri = uri
         self.decoder_pipeline = decoder_pipeline
         self.post_processor = post_processor
+        self.full_post_processor = full_post_processor
         WebSocketClient.__init__(self, url=uri)
         self.pipeline_initialized = False
         self.partial_transcript = ""
         if USE_NNET2:
             self.decoder_pipeline.set_result_handler(self._on_result)
+            self.decoder_pipeline.set_full_result_handler(self._on_full_result)
             self.decoder_pipeline.set_error_handler(self._on_error)
         else:
             self.decoder_pipeline.set_word_handler(self._on_word)
@@ -58,10 +60,12 @@ class ServerWebsocket(WebSocketClient):
         self.request_id = "<undefined>"
         self.timeout_decoder = 5
         self.num_segments = 0
+        self.last_partial_result = ""
 
     def opened(self):
         logger.info("Opened websocket connection to server")
         self.state = self.STATE_CONNECTED
+        self.last_partial_result = ""
 
     def guard_timeout(self):
         global SILENCE_TIMEOUT
@@ -156,10 +160,21 @@ class ServerWebsocket(WebSocketClient):
         logger.debug("%s: Websocket closed() finished" % self.request_id)
 
     def _on_result(self, result, final):
+        if final:
+            # final results are handled by _on_full_result()
+            return
         self.last_decoder_message = time.time()
+        if self.last_partial_result == result:
+            return
+        self.last_partial_result = result
         logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
+        if final:
+            logger.info("%s: Before postprocessing: %s" % (self.request_id, result))
         processed_transcript = self.post_process(result)
         logger.info("%s: Postprocessing done." % self.request_id)
+        if final:
+            logger.info("%s: After postprocessing: %s" % (self.request_id, processed_transcript))
+
         event = dict(status=common.STATUS_SUCCESS,
                      segment=self.num_segments,
                      result=dict(hypotheses=[dict(transcript=processed_transcript)], final=final))
@@ -168,8 +183,34 @@ class ServerWebsocket(WebSocketClient):
         except:
             e = sys.exc_info()[1]
             logger.warning("Failed to send event to master: %s" % e)
-        if final:
-            self.num_segments += 1
+
+    def _on_full_result(self, full_result_json):
+        self.last_decoder_message = time.time()
+        full_result = json.loads(full_result_json)
+        if full_result.get("status", -1) == common.STATUS_SUCCESS:
+            #logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
+            logger.debug("%s: Before postprocessing: %s" % (self.request_id, full_result))
+            full_result = self.post_process_full(full_result)
+            logger.info("%s: Postprocessing done." % self.request_id)
+            logger.debug("%s: After postprocessing: %s" % (self.request_id, full_result))
+
+
+            try:
+                self.send(json.dumps(full_result))
+            except:
+                e = sys.exc_info()[1]
+                logger.warning("Failed to send event to master: %s" % e)
+            if full_result.get("result", {}).get("final", True):
+                self.num_segments += 1
+                self.last_partial_result = ""
+        else:
+            logger.info("%s: Result status is %d, forwarding the result to the server anyway" % (self.request_id, full_result.get("status", -1)))
+            try:
+                self.send(json.dumps(full_result))
+            except:
+                e = sys.exc_info()[1]
+                logger.warning("Failed to send event to master: %s" % e)
+
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -177,9 +218,9 @@ class ServerWebsocket(WebSocketClient):
             if len(self.partial_transcript) > 0:
                 self.partial_transcript += " "
             self.partial_transcript += word
-            logger.info("%s: Postprocessing partial result.."  % self.request_id)
+            logger.debug("%s: Postprocessing partial result.."  % self.request_id)
             processed_transcript = self.post_process(self.partial_transcript)
-            logger.info("%s: Postprocessing done." % self.request_id)
+            logger.debug("%s: Postprocessing done." % self.request_id)
 
             event = dict(status=common.STATUS_SUCCESS,
                          segment=self.num_segments,
@@ -242,6 +283,27 @@ class ServerWebsocket(WebSocketClient):
         else:
             return text
 
+    def post_process_full(self, full_result):
+        if self.full_post_processor:
+            self.full_post_processor.stdin.write("%s\n\n" % json.dumps(full_result))
+            self.post_processor.stdin.flush()
+            lines = []
+            while True:
+                l = self.full_post_processor.stdout.readline()
+                if not l: break # EOF
+                if l.strip() == "":
+                    break
+                lines.append(l)
+            full_result = json.loads("".join(lines))
+
+        elif self.post_processor:
+            for hyp in full_result.get("result", {}).get("hypotheses", []):
+                hyp["original-transcript"] = hyp["transcript"]
+                hyp["transcript"] = self.post_process(hyp["transcript"])
+        return full_result
+
+
+
 
 def main():
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
@@ -281,10 +343,15 @@ def main():
     if "post-processor" in conf:
         post_processor = Popen(conf["post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
 
+    full_post_processor = None
+    if "full-post-processor" in conf:
+        full_post_processor = Popen(conf["full-post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
+
+
     loop = GObject.MainLoop()
     thread.start_new_thread(loop.run, ())
     while True:
-        ws = ServerWebsocket(args.uri, decoder_pipeline, post_processor)
+        ws = ServerWebsocket(args.uri, decoder_pipeline, post_processor, full_post_processor=full_post_processor)
         try:
             logger.info("Opening websocket connection to master server")
             ws.connect()

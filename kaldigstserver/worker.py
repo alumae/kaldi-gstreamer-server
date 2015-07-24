@@ -44,7 +44,7 @@ class ServerWebsocket(WebSocketClient):
         self.decoder_pipeline = decoder_pipeline
         self.post_processor = post_processor
         self.full_post_processor = full_post_processor
-        WebSocketClient.__init__(self, url=uri)
+        WebSocketClient.__init__(self, url=uri, heartbeat_freq=10)
         self.pipeline_initialized = False
         self.partial_transcript = ""
         if USE_NNET2:

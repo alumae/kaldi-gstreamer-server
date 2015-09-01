@@ -4,13 +4,13 @@ Sample script that shows how to postprocess full results from the kaldi-gstreame
 
 It adds a sentence confidence score to the 1-best hypothesis, deletes all other hypotheses and
 adds a dot (.) to the end of the 1-best hypothesis. It assumes that the results contain at least two hypotheses,
-Caution: this is not necessarily a very good confidence measure.
-NB! This confidence measure is not normalized!
+The confidence scores are now normalized
 '''
 
 import sys
 import json
 import logging
+from math import exp
 
 def post_process_json(str):
     try:
@@ -20,6 +20,7 @@ def post_process_json(str):
                 likelihood1 = event["result"]["hypotheses"][0]["likelihood"]
                 likelihood2 = event["result"]["hypotheses"][1]["likelihood"]
                 confidence = likelihood1 - likelihood2
+                confidence = 1 - exp(-confidence)
             else:
                 confidence = 1.0e+10;
             event["result"]["hypotheses"][0]["confidence"] = confidence

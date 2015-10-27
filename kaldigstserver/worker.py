@@ -187,6 +187,7 @@ class ServerWebsocket(WebSocketClient):
     def _on_full_result(self, full_result_json):
         self.last_decoder_message = time.time()
         full_result = json.loads(full_result_json)
+        full_result['segment'] = self.num_segments
         if full_result.get("status", -1) == common.STATUS_SUCCESS:
             #logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
             logger.debug("%s: Before postprocessing: %s" % (self.request_id, full_result))

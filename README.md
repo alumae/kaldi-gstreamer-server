@@ -27,6 +27,7 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2015-12-04: added a link to the Dockerfile.
 
   * 2015-06-30: server now uses the recently added "full final results" functionality of gst-kaldi-nnet2-online.
   Full results can include things like n-best hypotheses, word and phone alignment information, 
@@ -38,6 +39,11 @@ Changelog
 
 Installation
 ------------
+
+### Docker
+
+Building Kaldi and all the other packages required by this software can be quite complicated. Instead of building
+all the prerequisites manually, one could use the Dockerfile created by José Eduardo Silva: https://github.com/jcsilva/docker-kaldi-gstreamer-server.
 
 ### Requirements
 

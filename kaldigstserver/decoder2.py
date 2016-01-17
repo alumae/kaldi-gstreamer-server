@@ -24,7 +24,7 @@ class DecoderPipeline2(object):
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
         if not os.path.exists(self.outdir):
-            os.mkdir(self.outdir)
+            os.makedirs(self.outdir)
         elif not os.path.isdir(self.outdir):
             raise Exception("Output directory %s already exists as a file" % self.outdir)
 

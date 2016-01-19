@@ -73,7 +73,10 @@ class Application(tornado.web.Application):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("../README.md")
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+        parent_directory = os.path.join(current_directory, os.pardir)
+        readme = os.path.join(parent_directory, "README.md")
+        self.render(readme)
 
 
 def run_async(func):

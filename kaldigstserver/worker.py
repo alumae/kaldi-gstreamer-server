@@ -330,6 +330,15 @@ def main():
     if "logging" in conf:
         logging.config.dictConfig(conf["logging"])
 
+    # fork off the post-processors before we load the model into memory
+    post_processor = None
+    if "post-processor" in conf:
+        post_processor = Popen(conf["post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
+
+    full_post_processor = None
+    if "full-post-processor" in conf:
+        full_post_processor = Popen(conf["full-post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
+
     global USE_NNET2
     USE_NNET2 = conf.get("use-nnet2", False)
 
@@ -339,14 +348,6 @@ def main():
         decoder_pipeline = DecoderPipeline2(conf)
     else:
         decoder_pipeline = DecoderPipeline(conf)
-
-    post_processor = None
-    if "post-processor" in conf:
-        post_processor = Popen(conf["post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
-
-    full_post_processor = None
-    if "full-post-processor" in conf:
-        full_post_processor = Popen(conf["full-post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
 
 
     loop = GObject.MainLoop()

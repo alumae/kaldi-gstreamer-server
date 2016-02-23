@@ -287,7 +287,7 @@ class ServerWebsocket(WebSocketClient):
     def post_process_full(self, full_result):
         if self.full_post_processor:
             self.full_post_processor.stdin.write("%s\n\n" % json.dumps(full_result))
-            self.post_processor.stdin.flush()
+            self.full_post_processor.stdin.flush()
             lines = []
             while True:
                 l = self.full_post_processor.stdout.readline()

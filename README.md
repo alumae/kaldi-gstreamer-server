@@ -340,7 +340,7 @@ described (available here: http://ebooks.iospress.nl/volumearticle/37996):
       title="Full-duplex Speech-to-text System for {Estonian}",
       booktitle="Baltic HLT 2014",
       year=2014,
-      address="Kaunas, Lihtuania"
+      address="Kaunas, Lithuania"
     }
 
 Of course, you should also acknowledge Kaldi, which does all the hard work.

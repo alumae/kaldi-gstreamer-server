@@ -54,10 +54,11 @@ class DecoderPipeline2(object):
 
         decoder_config = conf.get("decoder", {})
         if 'nnet-mode' in decoder_config:
+          logger.info(("Setting decoder property: %s = %s" % ('nnet-mode', decoder_config['nnet-mode']))
           self.asr.set_property('nnet-mode', decoder_config['nnet-mode'])
           del decoder_config['nnet-mode']
 
-        for (key, val) in conf.get("decoder", {}).iteritems():
+        for (key, val) in decoder_config.iteritems():
             if key != "use-threaded-decoder":
                 logger.info("Setting decoder property: %s = %s" % (key, val))
                 self.asr.set_property(key, val)

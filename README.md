@@ -27,6 +27,8 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2016-10-06: added a sample conf for Librispeech models and the corresponding model download script (thanks to @skoocda)
+
   * 2015-12-04: added a link to the Dockerfile.
 
   * 2015-06-30: server now uses the recently added "full final results" functionality of gst-kaldi-nnet2-online.
@@ -169,7 +171,9 @@ Follow the instuctions and compile it. This should result in a file `~/tools/gst
 Also, download the DNN-based models for English, trained on the TEDLIUM speech corpus and combined with a generic English language model
 provided by Cantab Research. Run the `download-tedlium-nnet2.sh` under `test/models` to download the models (attention, 1.5 GB):
 
+    cd test/models 
     ./test/models/download-tedlium-nnet2.sh
+    cd ../../
 
 Before starting a worker, make sure that the GST plugin path includes the path where the `libgstkaldionline2.so` library you compiled earlier
 resides, something like:

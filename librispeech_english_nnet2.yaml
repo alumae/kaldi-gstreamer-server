@@ -1,5 +1,5 @@
 # You have to download Librispeech "online nnet2" models in order to use this sample
-# Run download-librispeech-nnet2.sh in '/opt/models' to download them.
+# Run download-librispeech-nnet2.sh in 'test/models' to download them.
 use-nnet2: True
 decoder:
     # All the properties nested here correspond to the kaldinnet2onlinedecoder GStreamer plugin properties.

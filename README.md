@@ -27,6 +27,9 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2016-10-14: Support for nnet3 (including 'chain') models, thanks to @yifan! Not tested very carefully.
+  Set the `decoder->nnet-mode` property to 3 to use nnet3 models. 
+
   * 2016-10-06: added a sample conf for Librispeech models and the corresponding model download script (thanks to @skoocda)
 
   * 2015-12-04: added a link to the Dockerfile.

@@ -54,7 +54,7 @@ class DecoderPipeline2(object):
 
         decoder_config = conf.get("decoder", {})
         if 'nnet-mode' in decoder_config:
-          logger.info(("Setting decoder property: %s = %s" % ('nnet-mode', decoder_config['nnet-mode']))
+          logger.info("Setting decoder property: %s = %s" % ('nnet-mode', decoder_config['nnet-mode']))
           self.asr.set_property('nnet-mode', decoder_config['nnet-mode'])
           del decoder_config['nnet-mode']
 

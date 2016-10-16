@@ -15,6 +15,7 @@ import codecs
 import zlib
 import base64
 import time
+from math import exp
 
 
 from ws4py.client.threadedclient import WebSocketClient
@@ -189,12 +190,27 @@ class ServerWebsocket(WebSocketClient):
         full_result = json.loads(full_result_json)
         full_result['segment'] = self.num_segments
         if full_result.get("status", -1) == common.STATUS_SUCCESS:
+
+            # confidence estimation (requires hypotheses in descending likelihood order)
+            hypotheses = full_result["result"]["hypotheses"]
+            last_confidence = 1
+            for h in [hypotheses[i:i+2] for i in xrange(len(hypotheses))]:
+                # iterate over sliding window of size 2, including a 1-element slice at the end
+                if len(h) == 1:
+                    # this is the last hypothesis (also could be the only one)
+                    h[0]["confidence"] = last_confidence
+                else:
+                    # otherwise confidence is based on how far away the following likelihood is
+                    # but no larger than the previous confidence
+                    curr_hyp, next_hyp = h[0], h[1]
+                    last_confidence = min(last_confidence, 1 - exp(next_hyp["likelihood"] - curr_hyp["likelihood"]))
+                    curr_hyp["confidence"] = last_confidence
+
             #logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
             logger.debug("%s: Before postprocessing: %s" % (self.request_id, full_result))
             full_result = self.post_process_full(full_result)
             logger.info("%s: Postprocessing done." % self.request_id)
             logger.debug("%s: After postprocessing: %s" % (self.request_id, full_result))
-
 
             try:
                 self.send(json.dumps(full_result))

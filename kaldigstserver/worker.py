@@ -275,7 +275,7 @@ class ServerWebsocket(WebSocketClient):
 
     def post_process(self, text):
         if self.post_processor:
-            self.post_processor.stdin.write("%s\n" % text)
+            self.post_processor.stdin.write("%s\n" % text.encode('utf-8'))
             self.post_processor.stdin.flush()
             text = self.post_processor.stdout.readline()
             text = text.strip()

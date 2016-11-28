@@ -27,6 +27,8 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2016-11-28: Server now supports serving requests using SSL. SSL is automatically turned on when the `cerfile` and `keyfile` command line arguments are specified.
+
   * 2016-10-14: Support for nnet3 (including 'chain') models, thanks to @yifan! Not tested very carefully.
   Set the `decoder->nnet-mode` property to 3 to use nnet3 models. 
 

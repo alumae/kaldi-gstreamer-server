@@ -329,11 +329,21 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
 def main():
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
     logging.debug('Starting up server')
-    from tornado.options import options
+    from tornado.options import define, options
+    define("certfile", default="", help="certificate file for secured SSL connection")
+    define("keyfile", default="", help="key file for secured SSL connection")
 
     tornado.options.parse_command_line()
     app = Application()
-    app.listen(options.port)
+    if options.certfile and options.keyfile:
+        ssl_options = {
+          "certfile": options.certfile,
+          "keyfile": options.keyfile,
+        }
+        logging.info("Using SSL for serving requests")
+        app.listen(options.port, ssl_options=ssl_options)
+    else:
+        app.listen(options.port)
     tornado.ioloop.IOLoop.instance().start()
 
 

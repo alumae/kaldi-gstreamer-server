@@ -189,12 +189,10 @@ class ServerWebsocket(WebSocketClient):
         full_result = json.loads(full_result_json)
         full_result['segment'] = self.num_segments
         if full_result.get("status", -1) == common.STATUS_SUCCESS:
-            #logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
-            logger.debug("%s: Before postprocessing: %s" % (self.request_id, full_result))
+            logger.debug(u"%s: Before postprocessing: %s" % (self.request_id, repr(full_result).decode("unicode-escape")))
             full_result = self.post_process_full(full_result)
             logger.info("%s: Postprocessing done." % self.request_id)
-            logger.debug("%s: After postprocessing: %s" % (self.request_id, full_result))
-
+            logger.debug(u"%s: After postprocessing: %s" % (self.request_id, repr(full_result).decode("unicode-escape")))
 
             try:
                 self.send(json.dumps(full_result))
@@ -211,7 +209,6 @@ class ServerWebsocket(WebSocketClient):
             except:
                 e = sys.exc_info()[1]
                 logger.warning("Failed to send event to master: %s" % e)
-
 
     def _on_word(self, word):
         self.last_decoder_message = time.time()
@@ -275,9 +272,9 @@ class ServerWebsocket(WebSocketClient):
 
     def post_process(self, text):
         if self.post_processor:
-            self.post_processor.stdin.write("%s\n" % text)
+            self.post_processor.stdin.write("%s\n" % text.encode("utf-8"))
             self.post_processor.stdin.flush()
-            text = self.post_processor.stdout.readline()
+            text = self.post_processor.stdout.readline().decode("utf-8")
             text = text.strip()
             text = text.replace("\\n", "\n")
             return text

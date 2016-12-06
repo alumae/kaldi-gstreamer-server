@@ -336,7 +336,7 @@ suitable for the application.
 Client software
 ---------------
 
-Javascript client is available here: http://kaljurand.github.io/dictate.js
+Javascript client is available here: https://kaljurand.github.io/dictate.js
 
 Citing
 ------

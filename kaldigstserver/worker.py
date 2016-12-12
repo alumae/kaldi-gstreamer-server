@@ -22,13 +22,17 @@ import ws4py.messaging
 
 from decoder import DecoderPipeline
 from decoder2 import DecoderPipeline2
+from decoder3 import DecoderPipeline3
 import common
 
 logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5
 SILENCE_TIMEOUT = 5
-USE_NNET2 = False
+STANDARD_DECODER = 0
+NNET2_DECODER = 1
+NNET3_DECODER = 2
+DECODER_TYPE = STANDARD_DECODER 
 
 class ServerWebsocket(WebSocketClient):
     STATE_CREATED = 0
@@ -47,7 +51,7 @@ class ServerWebsocket(WebSocketClient):
         WebSocketClient.__init__(self, url=uri, heartbeat_freq=10)
         self.pipeline_initialized = False
         self.partial_transcript = ""
-        if USE_NNET2:
+        if DECODER_TYPE != STANDARD_DECODER:
             self.decoder_pipeline.set_result_handler(self._on_result)
             self.decoder_pipeline.set_full_result_handler(self._on_full_result)
             self.decoder_pipeline.set_error_handler(self._on_error)
@@ -336,15 +340,21 @@ def main():
     if "full-post-processor" in conf:
         full_post_processor = Popen(conf["full-post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
 
-    global USE_NNET2
-    USE_NNET2 = conf.get("use-nnet2", False)
+    global DECODER_TYPE
+    if conf.get("use-nnet2", False):
+      DECODER_TYPE = NNET2_DECODER
+    elif conf.get("use-nnet3", False):
+      DECODER_TYPE = NNET3_DECODER
 
     global SILENCE_TIMEOUT
     SILENCE_TIMEOUT = conf.get("silence-timeout", 5)
-    if USE_NNET2:
+
+    if DECODER_TYPE == STANDARD_DECODER:
+      decoder_pipeline = DecoderPipeline(conf)
+    elif DECODER_TYPE == NNET2_DECODER:
         decoder_pipeline = DecoderPipeline2(conf)
-    else:
-        decoder_pipeline = DecoderPipeline(conf)
+    elif DECODER_TYPE == NNET3_DECODER:
+        decoder_pipeline = DecoderPipeline3(conf)
 
 
     loop = GObject.MainLoop()

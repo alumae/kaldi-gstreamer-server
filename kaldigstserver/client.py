@@ -29,11 +29,11 @@ def rate_limited(maxPerSecond):
 
 class MyClient(WebSocketClient):
 
-    def __init__(self, filename, url, protocols=None, extensions=None, heartbeat_freq=None, byterate=32000,
+    def __init__(self, audiofile, url, protocols=None, extensions=None, heartbeat_freq=None, byterate=32000,
                  save_adaptation_state_filename=None, send_adaptation_state_filename=None):
         super(MyClient, self).__init__(url, protocols, extensions, heartbeat_freq)
         self.final_hyps = []
-        self.fn = filename
+        self.audiofile = audiofile
         self.byterate = byterate
         self.final_hyp_queue = Queue.Queue()
         self.save_adaptation_state_filename = save_adaptation_state_filename
@@ -46,7 +46,6 @@ class MyClient(WebSocketClient):
     def opened(self):
         #print "Socket opened!"
         def send_data_to_ws():
-            f = open(self.fn, "rb")
             if self.send_adaptation_state_filename is not None:
                 print >> sys.stderr, "Sending adaptation state from %s" % self.send_adaptation_state_filename
                 try:
@@ -55,8 +54,9 @@ class MyClient(WebSocketClient):
                 except:
                     e = sys.exc_info()[0]
                     print >> sys.stderr, "Failed to send adaptation state: ",  e
-            for block in iter(lambda: f.read(self.byterate/4), ""):
-                self.send_data(block)
+            with self.audiofile as audiostream:
+                for block in iter(lambda: audiostream.read(self.byterate/4), ""):
+                    self.send_data(block)
             print >> sys.stderr, "Audio sent, now sending EOS"
             self.send("EOS")
 
@@ -108,11 +108,11 @@ def main():
     parser.add_argument('--save-adaptation-state', help="Save adaptation state to file")
     parser.add_argument('--send-adaptation-state', help="Send adaptation state from file")
     parser.add_argument('--content-type', default='', help="Use the specified content type (empty by default, for raw files the default is  audio/x-raw, layout=(string)interleaved, rate=(int)<rate>, format=(string)S16LE, channels=(int)1")
-    parser.add_argument('audiofile', help="Audio file to be sent to the server")
+    parser.add_argument('audiofile', help="Audio file to be sent to the server", type=argparse.FileType('r'), default=sys.stdin)
     args = parser.parse_args()
 
     content_type = args.content_type
-    if content_type == '' and args.audiofile.endswith(".raw"):
+    if content_type == '' and args.audiofile.name.endswith(".raw"):
         content_type = "audio/x-raw, layout=(string)interleaved, rate=(int)%d, format=(string)S16LE, channels=(int)1" %(args.rate/2)
 
 

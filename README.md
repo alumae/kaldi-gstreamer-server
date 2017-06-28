@@ -27,6 +27,9 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2017-06-28: The [sample client program](kaldigstserver/client.py) can now accept audio from stdin. This can be used to test the server with a live microphone, e.g.:
+    `arecord -f S16_LE -r 16000 | python kaldigstserver/client.py -r 32000 -`. Thanks to @wkuna!
+  
   * 2016-11-28: Server now supports serving requests using SSL. SSL is automatically turned on when the `certfile` and `keyfile` command line arguments are specified.
 
   * 2016-10-14: Support for nnet3 (including 'chain') models, thanks to @yifan! Not tested very carefully.

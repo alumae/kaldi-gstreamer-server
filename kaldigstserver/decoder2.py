@@ -23,10 +23,11 @@ class DecoderPipeline2(object):
         logger.info("Creating decoder using conf: %s" % conf)
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
-        if not os.path.exists(self.outdir):
-            os.makedirs(self.outdir)
-        elif not os.path.isdir(self.outdir):
-            raise Exception("Output directory %s already exists as a file" % self.outdir)
+        if self.outdir:
+            if not os.path.exists(self.outdir):
+                os.makedirs(self.outdir)
+            elif not os.path.isdir(self.outdir):
+                raise Exception("Output directory %s already exists as a file" % self.outdir)
 
         self.result_handler = None
         self.full_result_handler = None

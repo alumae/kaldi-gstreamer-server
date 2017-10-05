@@ -108,7 +108,7 @@ def main():
     parser.add_argument('--save-adaptation-state', help="Save adaptation state to file")
     parser.add_argument('--send-adaptation-state', help="Send adaptation state from file")
     parser.add_argument('--content-type', default='', help="Use the specified content type (empty by default, for raw files the default is  audio/x-raw, layout=(string)interleaved, rate=(int)<rate>, format=(string)S16LE, channels=(int)1")
-    parser.add_argument('audiofile', help="Audio file to be sent to the server", type=argparse.FileType('r'), default=sys.stdin)
+    parser.add_argument('audiofile', help="Audio file to be sent to the server", type=argparse.FileType('rb'), default=sys.stdin)
     args = parser.parse_args()
 
     content_type = args.content_type

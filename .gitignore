@@ -1,0 +1,4 @@
+test/models/english/*
+test/models/estonian/*
+
+.vscode

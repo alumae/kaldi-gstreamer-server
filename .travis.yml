@@ -1,0 +1,24 @@
+env:
+  global:
+    - CODECLIMATE_REPO_TOKEN=6c7aa04b7c8ea5bd90845bc6dccbad4d23785e7d263be4e27214d6d0b4f457de
+
+sudo: required
+
+language: python
+
+services:
+  - docker
+
+before_install:
+  - docker pull shookees/kaldi-gstreamer-server
+
+before_script:
+  - pip3 install codeclimate-test-reporter
+
+script:
+ - docker run -v `pwd`:/opt/kaldi-gstreamer-server-test shookees/kaldi-gstreamer-server bash -c "pip3 install coverage==4.3 &&
+                                                                                                 cd /opt/kaldi-gstreamer-server-test &&
+                                                                                                 GST_PLUGIN_PATH=/opt/gst-kaldi-nnet2-online:/opt/kaldi/src/gst-plugin coverage run -m unittest discover kaldigstserver *_test.py"
+
+after_script:
+  - codeclimate-test-reporter

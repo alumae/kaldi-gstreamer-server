@@ -44,8 +44,7 @@ if __name__ == "__main__":
         if l.strip() == "":
             if len(lines) > 0:
                 result_json = post_process_json("".join(lines))
-                print result_json
-                print
+                print(result_json)
                 sys.stdout.flush()
                 lines = []
         else:
@@ -53,5 +52,5 @@ if __name__ == "__main__":
 
     if len(lines) > 0:
         result_json = post_process_json("".join(lines))
-        print result_json
+        print(result_json)
         lines = []

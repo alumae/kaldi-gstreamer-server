@@ -1,34 +1,23 @@
-__author__ = 'tanel'
-
+import argparse
+import base64
+import codecs
+import json
+import locale
 import logging
 import logging.config
-import time
-import thread
-import argparse
-from subprocess import Popen, PIPE
-from gi.repository import GObject
-import yaml
-import json
 import sys
-import locale
-import codecs
-import zlib
-import base64
+import _thread
 import time
+import zlib
 
-
-from ws4py.client.threadedclient import WebSocketClient
 import ws4py.messaging
-
+import yaml
 from decoder import DecoderPipeline
 from decoder2 import DecoderPipeline2
-import common
+from gi.repository import GObject
+from ws4py.client.threadedclient import WebSocketClient
 
 logger = logging.getLogger(__name__)
-
-CONNECT_TIMEOUT = 5
-SILENCE_TIMEOUT = 5
-USE_NNET2 = False
 
 class ServerWebsocket(WebSocketClient):
     STATE_CREATED = 0
@@ -73,7 +62,7 @@ class ServerWebsocket(WebSocketClient):
             if time.time() - self.last_decoder_message > SILENCE_TIMEOUT:
                 logger.warning("%s: More than %d seconds from last decoder hypothesis update, cancelling" % (self.request_id, SILENCE_TIMEOUT))
                 self.finish_request()
-                event = dict(status=common.STATUS_NO_SPEECH)
+                event = dict(status=STATUS_NO_SPEECH)
                 try:
                     self.send(json.dumps(event))
                 except:
@@ -175,7 +164,7 @@ class ServerWebsocket(WebSocketClient):
         if final:
             logger.info("%s: After postprocessing: %s" % (self.request_id, processed_transcript))
 
-        event = dict(status=common.STATUS_SUCCESS,
+        event = dict(status=STATUS_SUCCESS,
                      segment=self.num_segments,
                      result=dict(hypotheses=[dict(transcript=processed_transcript)], final=final))
         try:
@@ -188,7 +177,7 @@ class ServerWebsocket(WebSocketClient):
         self.last_decoder_message = time.time()
         full_result = json.loads(full_result_json)
         full_result['segment'] = self.num_segments
-        if full_result.get("status", -1) == common.STATUS_SUCCESS:
+        if full_result.get("status", -1) == STATUS_SUCCESS:
             logger.debug(u"%s: Before postprocessing: %s" % (self.request_id, repr(full_result).decode("unicode-escape")))
             full_result = self.post_process_full(full_result)
             logger.info("%s: Postprocessing done." % self.request_id)
@@ -220,7 +209,7 @@ class ServerWebsocket(WebSocketClient):
             processed_transcript = self.post_process(self.partial_transcript)
             logger.debug("%s: Postprocessing done." % self.request_id)
 
-            event = dict(status=common.STATUS_SUCCESS,
+            event = dict(status=STATUS_SUCCESS,
                          segment=self.num_segments,
                          result=dict(hypotheses=[dict(transcript=processed_transcript)], final=False))
             self.send(json.dumps(event))
@@ -228,7 +217,7 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Postprocessing final result.."  % self.request_id)
             processed_transcript = self.post_process(self.partial_transcript)
             logger.info("%s: Postprocessing done." % self.request_id)
-            event = dict(status=common.STATUS_SUCCESS,
+            event = dict(status=STATUS_SUCCESS,
                          segment=self.num_segments,
                          result=dict(hypotheses=[dict(transcript=processed_transcript)], final=True))
             self.send(json.dumps(event))
@@ -244,7 +233,7 @@ class ServerWebsocket(WebSocketClient):
 
     def _on_error(self, error):
         self.state = self.STATE_FINISHED
-        event = dict(status=common.STATUS_NOT_ALLOWED, message=error)
+        event = dict(status=STATUS_NOT_ALLOWED, message=error)
         try:
             self.send(json.dumps(event))
         except:
@@ -256,7 +245,7 @@ class ServerWebsocket(WebSocketClient):
         if hasattr(self.decoder_pipeline, 'get_adaptation_state'):
             logger.info("%s: Sending adaptation state to client..." % (self.request_id))
             adaptation_state = self.decoder_pipeline.get_adaptation_state()
-            event = dict(status=common.STATUS_SUCCESS,
+            event = dict(status=STATUS_SUCCESS,
                          adaptation_state=dict(id=self.request_id,
                                                value=base64.b64encode(zlib.compress(adaptation_state)),
                                                type="string+gzip+base64",
@@ -299,68 +288,3 @@ class ServerWebsocket(WebSocketClient):
                 hyp["original-transcript"] = hyp["transcript"]
                 hyp["transcript"] = self.post_process(hyp["transcript"])
         return full_result
-
-
-
-
-def main():
-    logging.basicConfig(level=logging.DEBUG, format="%(levelname)8s %(asctime)s %(message)s ")
-    logging.debug('Starting up worker')
-    parser = argparse.ArgumentParser(description='Worker for kaldigstserver')
-    parser.add_argument('-u', '--uri', default="ws://localhost:8888/worker/ws/speech", dest="uri", help="Server<-->worker websocket URI")
-    parser.add_argument('-f', '--fork', default=1, dest="fork", type=int)
-    parser.add_argument('-c', '--conf', dest="conf", help="YAML file with decoder configuration")
-
-    args = parser.parse_args()
-
-    if args.fork > 1:
-        import tornado.process
-
-        logging.info("Forking into %d processes" % args.fork)
-        tornado.process.fork_processes(args.fork)
-
-    conf = {}
-    if args.conf:
-        with open(args.conf) as f:
-            conf = yaml.safe_load(f)
-
-    if "logging" in conf:
-        logging.config.dictConfig(conf["logging"])
-
-    # fork off the post-processors before we load the model into memory
-    post_processor = None
-    if "post-processor" in conf:
-        post_processor = Popen(conf["post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
-
-    full_post_processor = None
-    if "full-post-processor" in conf:
-        full_post_processor = Popen(conf["full-post-processor"], shell=True, stdin=PIPE, stdout=PIPE)
-
-    global USE_NNET2
-    USE_NNET2 = conf.get("use-nnet2", False)
-
-    global SILENCE_TIMEOUT
-    SILENCE_TIMEOUT = conf.get("silence-timeout", 5)
-    if USE_NNET2:
-        decoder_pipeline = DecoderPipeline2(conf)
-    else:
-        decoder_pipeline = DecoderPipeline(conf)
-
-
-    loop = GObject.MainLoop()
-    thread.start_new_thread(loop.run, ())
-    while True:
-        ws = ServerWebsocket(args.uri, decoder_pipeline, post_processor, full_post_processor=full_post_processor)
-        try:
-            logger.info("Opening websocket connection to master server")
-            ws.connect()
-            ws.run_forever()
-        except Exception:
-            logger.error("Couldn't connect to server, waiting for %d seconds", CONNECT_TIMEOUT)
-            time.sleep(CONNECT_TIMEOUT)
-        # fixes a race condition
-        time.sleep(1)
-
-if __name__ == "__main__":
-    main()
-

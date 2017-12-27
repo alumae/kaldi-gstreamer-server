@@ -27,6 +27,10 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2017-12-27: Somewhat big changes in the way post-processor is invoked. The problem was that in some use cases, the program that is used for
+    post-processing decoded sentences can take a lot of time (let's say 0.5 seconds). Under the previous architecture, post-processor was invoked
+    syncronously, meaning that decoding was suspended during that time. This change fixes that.        
+
   * 2017-06-28: The [sample client program](kaldigstserver/client.py) can now accept audio from stdin. This can be used to test the server with a live microphone, e.g.:
     `arecord -f S16_LE -r 16000 | python kaldigstserver/client.py -r 32000 -`. Thanks to @wkuna!
   

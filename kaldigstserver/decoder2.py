@@ -13,6 +13,7 @@ Gst.init(None)
 import logging
 import thread
 import os
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,13 @@ class DecoderPipeline2(object):
           self.asr.set_property('nnet-mode', decoder_config['nnet-mode'])
           del decoder_config['nnet-mode']
 
+        decoder_config = OrderedDict(decoder_config)
+
+        if "fst" in decoder_config:
+            decoder_config["fst"] = decoder_config.pop("fst")
+        if "model" in decoder_config:
+            decoder_config["model"] = decoder_config.pop("model")
+        
         for (key, val) in decoder_config.iteritems():
             if key != "use-threaded-decoder":
                 logger.info("Setting decoder property: %s = %s" % (key, val))

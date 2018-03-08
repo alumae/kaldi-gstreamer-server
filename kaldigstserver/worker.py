@@ -208,6 +208,7 @@ class ServerWebsocket(WebSocketClient):
             self.last_decoder_message = time.time()
             full_result = json.loads(full_result_json)
             full_result['segment'] = self.num_segments
+            full_result['id'] = self.request_id
             if full_result.get("status", -1) == common.STATUS_SUCCESS:
                 logger.debug(u"%s: Before postprocessing: %s" % (self.request_id, repr(full_result).decode("unicode-escape")))
                 full_result = yield self.post_process_full(full_result)

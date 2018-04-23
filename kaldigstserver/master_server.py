@@ -23,6 +23,7 @@ import tornado.web
 import tornado.websocket
 import tornado.gen
 import tornado.concurrent
+import concurrent.futures
 import settings
 import common
 
@@ -79,16 +80,6 @@ class MainHandler(tornado.web.RequestHandler):
         self.render(readme)
 
 
-def run_async(func):
-    @functools.wraps(func)
-    def async_func(*args, **kwargs):
-        func_hl = threading.Thread(target=func, args=args, kwargs=kwargs)
-        func_hl.start()
-        return func_hl
-
-    return async_func
-
-
 def content_type_to_caps(content_type):
     """
     Converts MIME-style raw audio content type specifier to GStreamer CAPS string
@@ -122,6 +113,8 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         self.worker = None
         self.error_status = 0
         self.error_message = None
+        #Waiter thread for final hypothesis:
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1) 
         try:
             self.worker = self.application.available_workers.pop()
             self.application.send_status_update()
@@ -150,10 +143,10 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     def put(self, *args, **kwargs):
         self.end_request(args, kwargs)
 
-    @run_async
-    def get_final_hyp(self, callback=None):
+    @tornado.concurrent.run_on_executor
+    def get_final_hyp(self):
         logging.info("%s: Waiting for final result..." % self.id)
-        callback(self.final_result_queue.get(block=True))
+        return self.final_result_queue.get(block=True)
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -162,7 +155,7 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         assert self.worker is not None
         self.worker.write_message("EOS", binary=True)
         logging.info("%s: yielding..." % self.id)
-        hyp = yield tornado.gen.Task(self.get_final_hyp)
+        hyp = yield self.get_final_hyp()
         if self.error_status == 0:
             logging.info("%s: Final hyp: %s" % (self.id, hyp))
             response = {"status" : 0, "id": self.id, "hypotheses": [{"utterance" : hyp}]}

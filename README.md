@@ -27,6 +27,7 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2018-04-25: Server should now work with Tornado 5 (thanks to @Gastron). If using Python 2, uou might need to install the `futures` package (`pip install futures`).
   * 2017-12-27: Somewhat big changes in the way post-processor is invoked. The problem was that in some use cases, the program that is used for
     post-processing decoded sentences can take a lot of time (let's say 0.5 seconds). Under the previous architecture, post-processor was invoked
     syncronously, meaning that decoding was suspended during that time. This change fixes that.        

@@ -50,6 +50,22 @@ class DecoderPipeline(object):
         self.asr = Gst.ElementFactory.make("onlinegmmdecodefaster", "asr")
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
 
+        if not self.asr:
+            print >> sys.stderr, "ERROR: Couldn't create the kaldinnet2onlinedecoder element!"
+            gst_plugin_path = os.environ.get("GST_PLUGIN_PATH")
+            if gst_plugin_path:
+                print >> sys.stderr, \
+                    "Couldn't find kaldinnet2onlinedecoder element at %s. " \
+                    "If it's not the right path, try to set GST_PLUGIN_PATH to the right one, and retry. " \
+                    "You can also try to run the following command: " \
+                    "'GST_PLUGIN_PATH=%s gst-inspect-1.0 kaldinnet2onlinedecoder'." \
+                    % (gst_plugin_path, gst_plugin_path)
+            else:
+                print >> sys.stderr, \
+                    "The environment variable GST_PLUGIN_PATH wasn't set or it's empty. " \
+                    "Try to set GST_PLUGIN_PATH environment variable, and retry."
+            sys.exit(-1);
+
         for (key, val) in conf.get("decoder", {}).iteritems():
             logger.info("Setting decoder property: %s = %s" % (key, val))
             self.asr.set_property(key, val)

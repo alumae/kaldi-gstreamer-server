@@ -50,6 +50,22 @@ class DecoderPipeline(object):
         self.asr = Gst.ElementFactory.make("onlinegmmdecodefaster", "asr")
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
 
+        if not self.asr:
+            print >> sys.stderr, "ERROR: Couldn't create the onlinegmmdecodefaster element!"
+            gst_plugin_path = os.environ.get("GST_PLUGIN_PATH")
+            if gst_plugin_path:
+                print >> sys.stderr, \
+                    "Couldn't find onlinegmmdecodefaster element at %s. " \
+                    "If it's not the right path, try to set GST_PLUGIN_PATH to the right one, and retry. " \
+                    "You can also try to run the following command: " \
+                    "'GST_PLUGIN_PATH=%s gst-inspect-1.0 onlinegmmdecodefaster'." \
+                    % (gst_plugin_path, gst_plugin_path)
+            else:
+                print >> sys.stderr, \
+                    "The environment variable GST_PLUGIN_PATH wasn't set or it's empty. " \
+                    "Try to set GST_PLUGIN_PATH environment variable, and retry."
+            sys.exit(-1);
+
         for (key, val) in conf.get("decoder", {}).iteritems():
             logger.info("Setting decoder property: %s = %s" % (key, val))
             self.asr.set_property(key, val)
@@ -178,7 +194,7 @@ class DecoderPipeline(object):
             self.filesink.set_property('location', "%s/%s.raw" % (self.outdir, id))
             self.filesink.set_state(Gst.State.PLAYING)
 
-        #self.filesink.set_state(Gst.State.PLAYING)        
+        #self.filesink.set_state(Gst.State.PLAYING)
         #self.decodebin.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.PLAYING)
         self.filesink.set_state(Gst.State.PLAYING)

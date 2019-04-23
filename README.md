@@ -19,7 +19,7 @@ Features
   * Supports persisting the acoustic model adaptation state between requests
   * Supports unlimited set of audio codecs (actually only those supported by GStreamer)
   * Supports rewriting raw recognition results using external programs (can be used for converting words to numbers, etc)
-  * Python, Java, Javascript clients are available
+  * Python, Java, Javascript, Haskell clients are available
 
 English demo that uses the server: http://bark.phon.ioc.ee/dictate/
 
@@ -345,6 +345,7 @@ Client software
 ---------------
 
 Javascript client is available here: https://kaljurand.github.io/dictate.js
+Haskell client is available here: https://github.com/alx741/kaldi-gstreamer-server-haskell-client
 
 Citing
 ------

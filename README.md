@@ -6,6 +6,10 @@ Kaldi GStreamer server
 This is a real-time full-duplex speech recognition server, based on
 the Kaldi toolkit and the GStreamer framework and implemented in Python.
 
+Advertisement
+-------------
+[Laboratory of Language Technology](https://www.taltech.ee/projects/language-technology-lab/) of Tallinn University of Technology is looking for a PhD student to work on speech recognition, with a focus on lightly code-switched speech (e.g. Finnish containing a lot of English technical terms). [Topic, how to apply](https://ttu.ee/doktorandile/vastuvott-14/konkursid-5/information-and-communication-technology-2/tanel-alumae/), [requirements, funding](https://www.taltech.ee/projects/language-technology-lab/study-15/phd-studies-8/).
+
 Features
 --------
 

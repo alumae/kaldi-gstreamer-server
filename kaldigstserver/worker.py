@@ -254,7 +254,7 @@ class ServerWebsocket(WebSocketClient):
                     self.send(json.dumps(event))
             else:
                 logger.info("%s: Postprocessing final result.."  % self.request_id)
-                processed_transcript = (yield self.post_process(self.partial_transcript, blocking=True))[0]
+                processed_transcript = (yield self.post_process(self.partial_transcript, blocking=True))
                 logger.info("%s: Postprocessing done." % self.request_id)
                 event = dict(status=common.STATUS_SUCCESS,
                              segment=self.num_segments,

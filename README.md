@@ -189,7 +189,7 @@ Also, download the DNN-based models for English, trained on the TEDLIUM speech c
 provided by Cantab Research. Run the `download-tedlium-nnet2.sh` under `test/models` to download the models (attention, 1.5 GB):
 
     cd test/models 
-    ./test/models/download-tedlium-nnet2.sh
+    ./download-tedlium-nnet2.sh
     cd ../../
 
 Before starting a worker, make sure that the GST plugin path includes the path where the `libgstkaldionline2.so` library you compiled earlier

@@ -68,8 +68,8 @@ class ServerWebsocket(WebSocketClient):
         self.timeout_decoder = 5
         self.num_segments = 0
         self.last_partial_result = ""
-        self.post_processor_lock = threading.Lock()
-        self.processing_condition = threading.Condition()
+        self.post_processor_lock = tornado.locks.Lock()
+        self.processing_condition = tornado.locks.Condition()
         self.num_processing_threads = 0
         
         
@@ -168,11 +168,10 @@ class ServerWebsocket(WebSocketClient):
         self.finish_request()
         logger.debug("%s: Websocket closed() finished" % self.request_id)
 
+    @tornado.gen.coroutine
     def _increment_num_processing(self, delta):
-        self.processing_condition.acquire()
         self.num_processing_threads += delta
         self.processing_condition.notify()
-        self.processing_condition.release()
 
     @tornado.gen.coroutine
     def _on_result(self, result, final):
@@ -265,15 +264,14 @@ class ServerWebsocket(WebSocketClient):
         finally:
             self._increment_num_processing(-1)
 
-
+    @tornado.gen.coroutine
     def _on_eos(self, data=None):
         self.last_decoder_message = time.time()
         # Make sure we won't close the connection before the 
         # post-processing has finished
-        self.processing_condition.acquire()
         while self.num_processing_threads > 0:
-            self.processing_condition.wait()
-        self.processing_condition.release()
+            logging.debug("Waiting until processing threads finish (%d)" % self.num_processing_threads)
+            yield self.processing_condition.wait()
         
         self.state = self.STATE_FINISHED
         self.send_adaptation_state()
@@ -309,21 +307,26 @@ class ServerWebsocket(WebSocketClient):
     @tornado.gen.coroutine
     def post_process(self, texts, blocking=False):
         if self.post_processor:
-            if self.post_processor_lock.acquire(blocking):
-                result = []
-                for text in texts:
-                    self.post_processor.stdin.write("%s\n" % text.encode("utf-8"))
-                    self.post_processor.stdin.flush()
-                    logging.debug("%s: Starting postprocessing: %s"  % (self.request_id, text))
-                    text = yield self.post_processor.stdout.read_until('\n')#.decode("utf-8")
-                    text = text.decode("utf-8")
-                    logging.debug("%s: Postprocessing returned: %s"  % (self.request_id, text))
-                    text = text.strip()
-                    text = text.replace("\\n", "\n")
-                    result.append(text)
-                self.post_processor_lock.release()
-                raise tornado.gen.Return(result)
+            logging.debug("%s: Waiting for postprocessor lock" % self.request_id)
+            if blocking:
+                timeout=None
             else:
+                timeout=0.0
+            try:
+                with (yield self.post_processor_lock.acquire(timeout)):
+                    result = []
+                    for text in texts:
+                        self.post_processor.stdin.write("%s\n" % text.encode("utf-8"))
+                        self.post_processor.stdin.flush()
+                        logging.debug("%s: Starting postprocessing: %s"  % (self.request_id, text))
+                        text = yield self.post_processor.stdout.read_until('\n')
+                        text = text.decode("utf-8")
+                        logging.debug("%s: Postprocessing returned: %s"  % (self.request_id, text))
+                        text = text.strip()
+                        text = text.replace("\\n", "\n")
+                        result.append(text)
+                    raise tornado.gen.Return(result)
+            except tornado.gen.TimeoutError:
                 logging.debug("%s: Skipping postprocessing since post-processor already in use"  % (self.request_id))
                 raise tornado.gen.Return(None)
         else:
@@ -391,10 +394,12 @@ def main():
         logging.config.dictConfig(conf["logging"])
 
     # fork off the post-processors before we load the model into memory
+    tornado.process.Subprocess.initialize()
     post_processor = None
     if "post-processor" in conf:
         STREAM = tornado.process.Subprocess.STREAM
         post_processor = tornado.process.Subprocess(conf["post-processor"], shell=True, stdin=PIPE, stdout=STREAM)
+        
 
     full_post_processor = None
     if "full-post-processor" in conf:
@@ -412,8 +417,9 @@ def main():
 
     loop = GObject.MainLoop()
     thread.start_new_thread(loop.run, ())
-    thread.start_new_thread(tornado.ioloop.IOLoop.instance().start, ())
-    main_loop(args.uri, decoder_pipeline, post_processor, full_post_processor)  
+    thread.start_new_thread(main_loop, (args.uri, decoder_pipeline, post_processor, full_post_processor))  
+    tornado.ioloop.IOLoop.current().start()
+
 
 if __name__ == "__main__":
     main()

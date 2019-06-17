@@ -18,7 +18,7 @@ decoder:
     endpoint-silence-phones : "1:2:3:4:5:6:7:8:9:10"
     traceback-period-in-secs: 0.25
     chunk-length-in-secs: 0.25
-    num-nbest: 10
+    num-nbest: 1
     #Additional functionality that you can play with:
     #lm-fst:  test/models/english/tedlium_nnet_ms_sp_online/G.fst
     #big-lm-const-arpa: test/models/english/tedlium_nnet_ms_sp_online/G.carpa
@@ -31,10 +31,12 @@ use-vad: False
 silence-timeout: 10
 
 # Just a sample post-processor that appends "." to the hypothesis
-post-processor: perl -npe 'BEGIN {use IO::Handle; STDOUT->autoflush(1);} s/(.*)/\1./;'
+post-processor: perl -npe 'BEGIN {use IO::Handle; STDOUT->autoflush(1);} sleep(1); s/(.*)/\1./;'
+
+#post-processor: (while read LINE; do echo $LINE; done)
 
 # A sample full post processor that add a confidence score to 1-best hyp and deletes other n-best hyps
-full-post-processor: ./sample_full_post_processor.py
+#full-post-processor: ./sample_full_post_processor.py
 
 logging:
     version : 1

@@ -15,7 +15,7 @@ import uuid
 import time
 import threading
 import functools
-from Queue import Queue
+from queue import Queue
 
 import tornado.ioloop
 import tornado.options
@@ -148,7 +148,6 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         logging.info("%s: Waiting for final result..." % self.id)
         return self.final_result_queue.get(block=True)
 
-    @tornado.web.asynchronous
     @tornado.gen.coroutine
     def end_request(self, *args, **kwargs):
         logging.info("%s: Handling the end of chunked recognize request" % self.id)
@@ -272,7 +271,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
         if len(event_str) > 100:
             event_str = event_str[:97] + "..."
         logging.info("%s: Sending event %s to client" % (self.id, event_str))
-        self.write_message(json.dumps(event))
+        self.write_message(json.dumps(event).replace('False', 'false').replace('\'', '\"'))
 
     def open(self):
         self.id = str(uuid.uuid4())
@@ -313,7 +312,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         assert self.worker is not None
         logging.info("%s: Forwarding client message (%s) of length %d to worker" % (self.id, type(message), len(message)))
-        if isinstance(message, unicode):
+        if isinstance(message, str):
             self.worker.write_message(message, binary=False)
         else:
             self.worker.write_message(message, binary=True)

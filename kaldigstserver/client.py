@@ -6,7 +6,7 @@ import time
 import threading
 import sys
 import urllib
-import Queue
+import queue
 import json
 import time
 import os
@@ -35,7 +35,7 @@ class MyClient(WebSocketClient):
         self.final_hyps = []
         self.audiofile = audiofile
         self.byterate = byterate
-        self.final_hyp_queue = Queue.Queue()
+        self.final_hyp_queue = queue.Queue()
         self.save_adaptation_state_filename = save_adaptation_state_filename
         self.send_adaptation_state_filename = send_adaptation_state_filename
 
@@ -44,20 +44,20 @@ class MyClient(WebSocketClient):
         self.send(data, binary=True)
 
     def opened(self):
-        #print "Socket opened!"
+        #print("Socket opened!")
         def send_data_to_ws():
             if self.send_adaptation_state_filename is not None:
-                print >> sys.stderr, "Sending adaptation state from %s" % self.send_adaptation_state_filename
+                print("Sending adaptation state from " + self.send_adaptation_state_filename)
                 try:
                     adaptation_state_props = json.load(open(self.send_adaptation_state_filename, "r"))
                     self.send(json.dumps(dict(adaptation_state=adaptation_state_props)))
                 except:
                     e = sys.exc_info()[0]
-                    print >> sys.stderr, "Failed to send adaptation state: ",  e
+                    print("Failed to send adaptation state: " + e)
             with self.audiofile as audiostream:
-                for block in iter(lambda: audiostream.read(self.byterate/4), ""):
+                for block in iter(lambda: audiostream.read(int(self.byterate/4)), ""):
                     self.send_data(block)
-            print >> sys.stderr, "Audio sent, now sending EOS"
+            print("Audio sent, now sending EOS")
             self.send("EOS")
 
         t = threading.Thread(target=send_data_to_ws)
@@ -66,37 +66,33 @@ class MyClient(WebSocketClient):
 
     def received_message(self, m):
         response = json.loads(str(m))
-        #print >> sys.stderr, "RESPONSE:", response
-        #print >> sys.stderr, "JSON was:", m
         if response['status'] == 0:
             if 'result' in response:
-                trans = response['result']['hypotheses'][0]['transcript'].encode('utf-8')
+                trans = response['result']['hypotheses'][0]['transcript']
                 if response['result']['final']:
-                    #print >> sys.stderr, trans,
                     self.final_hyps.append(trans)
-                    print >> sys.stderr, '\r%s' % trans.replace("\n", "\\n")
+                    print(trans.replace("\n", "\\n"), end="\r")
                 else:
                     print_trans = trans.replace("\n", "\\n")
                     if len(print_trans) > 80:
                         print_trans = "... %s" % print_trans[-76:]
-                    print >> sys.stderr, '\r%s' % print_trans,
+                    print(print_trans, end="\r")
             if 'adaptation_state' in response:
                 if self.save_adaptation_state_filename:
-                    print >> sys.stderr, "Saving adaptation state to %s" % self.save_adaptation_state_filename
+                    print("Saving adaptation state to " + self.save_adaptation_state_filename)
                     with open(self.save_adaptation_state_filename, "w") as f:
                         f.write(json.dumps(response['adaptation_state']))
         else:
-            print >> sys.stderr, "Received error from server (status %d)" % response['status']
+            print("Received error from server (status %d)" % response['status'])
             if 'message' in response:
-                print >> sys.stderr, "Error message:",  response['message']
+                print("Error message:" + response['message'])
 
 
     def get_full_hyp(self, timeout=60):
         return self.final_hyp_queue.get(timeout)
 
     def closed(self, code, reason=None):
-        #print "Websocket closed() called"
-        #print >> sys.stderr
+        #print("Websocket closed() called")
         self.final_hyp_queue.put(" ".join(self.final_hyps))
 
 
@@ -117,11 +113,11 @@ def main():
 
 
 
-    ws = MyClient(args.audiofile, args.uri + '?%s' % (urllib.urlencode([("content-type", content_type)])), byterate=args.rate,
+    ws = MyClient(args.audiofile, args.uri + '?%s' % (urllib.parse.urlencode([("content-type", content_type)])), byterate=args.rate,
                   save_adaptation_state_filename=args.save_adaptation_state, send_adaptation_state_filename=args.send_adaptation_state)
     ws.connect()
     result = ws.get_full_hyp()
-    print result
+    print(result)
 
 if __name__ == "__main__":
     main()

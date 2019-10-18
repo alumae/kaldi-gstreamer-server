@@ -15,7 +15,7 @@ import uuid
 import time
 import threading
 import functools
-from Queue import Queue
+from queue import Queue
 
 import tornado.ioloop
 import tornado.options
@@ -313,7 +313,7 @@ class DecoderSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         assert self.worker is not None
         logging.info("%s: Forwarding client message (%s) of length %d to worker" % (self.id, type(message), len(message)))
-        if isinstance(message, unicode):
+        if isinstance(message, str):
             self.worker.write_message(message, binary=False)
         else:
             self.worker.write_message(message, binary=True)

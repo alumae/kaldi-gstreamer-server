@@ -6,7 +6,7 @@ import time
 import threading
 import sys
 import urllib
-import Queue
+import queue
 import json
 import time
 import os
@@ -35,7 +35,7 @@ class MyClient(WebSocketClient):
         self.final_hyps = []
         self.audiofile = audiofile
         self.byterate = byterate
-        self.final_hyp_queue = Queue.Queue()
+        self.final_hyp_queue = queue.Queue()
         self.save_adaptation_state_filename = save_adaptation_state_filename
         self.send_adaptation_state_filename = send_adaptation_state_filename
 
@@ -55,7 +55,7 @@ class MyClient(WebSocketClient):
                     e = sys.exc_info()[0]
                     print >> sys.stderr, "Failed to send adaptation state: ",  e
             with self.audiofile as audiostream:
-                for block in iter(lambda: audiostream.read(self.byterate/4), ""):
+                for block in iter(lambda: audiostream.read(int(self.byterate/4)), ""):
                     self.send_data(block)
             print >> sys.stderr, "Audio sent, now sending EOS"
             self.send("EOS")
@@ -117,11 +117,11 @@ def main():
 
 
 
-    ws = MyClient(args.audiofile, args.uri + '?%s' % (urllib.urlencode([("content-type", content_type)])), byterate=args.rate,
+    ws = MyClient(args.audiofile, args.uri + '?%s' % (urllib.parse.urlencode([("content-type", content_type)])), byterate=args.rate,
                   save_adaptation_state_filename=args.save_adaptation_state, send_adaptation_state_filename=args.send_adaptation_state)
     ws.connect()
     result = ws.get_full_hyp()
-    print result
+    print(result)
 
 if __name__ == "__main__":
     main()

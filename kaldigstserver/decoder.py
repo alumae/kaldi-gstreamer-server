@@ -11,7 +11,7 @@ from gi.repository import GObject, Gst
 GObject.threads_init()
 Gst.init(None)
 import logging
-import thread
+import _thread
 import os
 
 logger = logging.getLogger(__name__)

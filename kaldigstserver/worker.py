@@ -3,7 +3,7 @@ __author__ = 'tanel'
 import logging
 import logging.config
 import time
-import thread
+import _thread
 import threading
 import os
 import argparse
@@ -18,6 +18,8 @@ import zlib
 import base64
 import time
 
+import asyncio
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 import tornado.gen 
 import tornado.process
 import tornado.ioloop
@@ -68,6 +70,7 @@ class ServerWebsocket(WebSocketClient):
         self.timeout_decoder = 5
         self.num_segments = 0
         self.last_partial_result = ""
+        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
         self.post_processor_lock = tornado.locks.Lock()
         self.processing_condition = tornado.locks.Condition()
         self.num_processing_threads = 0
@@ -79,6 +82,7 @@ class ServerWebsocket(WebSocketClient):
         self.last_partial_result = ""
     
     def guard_timeout(self):
+        asyncio.set_event_loop(asyncio.new_event_loop())
         global SILENCE_TIMEOUT
         while self.state in [self.STATE_EOS_RECEIVED, self.STATE_CONNECTED, self.STATE_INITIALIZED, self.STATE_PROCESSING]:
             if time.time() - self.last_decoder_message > SILENCE_TIMEOUT:
@@ -97,13 +101,13 @@ class ServerWebsocket(WebSocketClient):
     def received_message(self, m):
         logger.debug("%s: Got message from server of type %s" % (self.request_id, str(type(m))))
         if self.state == self.__class__.STATE_CONNECTED:
-            props = json.loads(str(m))
+            props = json.loads(m.data.decode("utf-8"))
             content_type = props['content_type']
             self.request_id = props['id']
             self.num_segments = 0
             self.decoder_pipeline.init_request(self.request_id, content_type)
             self.last_decoder_message = time.time()
-            thread.start_new_thread(self.guard_timeout, ())
+            _thread.start_new_thread(self.guard_timeout, ())
             logger.info("%s: Started timeout guard" % self.request_id)
             logger.info("%s: Initialized request" % self.request_id)
             self.state = self.STATE_INITIALIZED
@@ -177,6 +181,7 @@ class ServerWebsocket(WebSocketClient):
     def _on_result(self, result, final):
         try:
             self._increment_num_processing(1)
+
             if final:
                 # final results are handled by _on_full_result()
                 return
@@ -203,16 +208,16 @@ class ServerWebsocket(WebSocketClient):
     def _on_full_result(self, full_result_json):
         try:
             self._increment_num_processing(1)
-            
+
             self.last_decoder_message = time.time()
             full_result = json.loads(full_result_json)
             full_result['segment'] = self.num_segments
             full_result['id'] = self.request_id
             if full_result.get("status", -1) == common.STATUS_SUCCESS:
-                logger.debug(u"%s: Before postprocessing: %s" % (self.request_id, repr(full_result).decode("unicode-escape")))
+                logger.debug(u"%s: Before postprocessing: %s" % (self.request_id, repr(full_result)))
                 full_result = yield self.post_process_full(full_result)
                 logger.info("%s: Postprocessing done." % self.request_id)
-                logger.debug(u"%s: After postprocessing: %s" % (self.request_id, repr(full_result).decode("unicode-escape")))
+                logger.debug(u"%s: After postprocessing: %s" % (self.request_id, repr(full_result)))
 
                 try:
                     self.send(json.dumps(full_result))
@@ -236,7 +241,7 @@ class ServerWebsocket(WebSocketClient):
     def _on_word(self, word):
         try:
             self._increment_num_processing(1)
-            
+
             self.last_decoder_message = time.time()
             if word != "<#s>":
                 if len(self.partial_transcript) > 0:
@@ -293,7 +298,7 @@ class ServerWebsocket(WebSocketClient):
             adaptation_state = self.decoder_pipeline.get_adaptation_state()
             event = dict(status=common.STATUS_SUCCESS,
                          adaptation_state=dict(id=self.request_id,
-                                               value=base64.b64encode(zlib.compress(adaptation_state)),
+                                               value=base64.b64encode(zlib.compress(adaptation_state.encode())),
                                                type="string+gzip+base64",
                                                time=time.strftime("%Y-%m-%dT%H:%M:%S")))
             try:
@@ -416,8 +421,8 @@ def main():
         decoder_pipeline = DecoderPipeline(conf)
 
     loop = GObject.MainLoop()
-    thread.start_new_thread(loop.run, ())
-    thread.start_new_thread(main_loop, (args.uri, decoder_pipeline, post_processor, full_post_processor))  
+    _thread.start_new_thread(loop.run, ())
+    _thread.start_new_thread(main_loop, (args.uri, decoder_pipeline, post_processor, full_post_processor))  
     tornado.ioloop.IOLoop.current().start()
 
 

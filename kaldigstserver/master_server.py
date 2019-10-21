@@ -148,7 +148,6 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         logging.info("%s: Waiting for final result..." % self.id)
         return self.final_result_queue.get(block=True)
 
-    @tornado.web.asynchronous
     @tornado.gen.coroutine
     def end_request(self, *args, **kwargs):
         logging.info("%s: Handling the end of chunked recognize request" % self.id)

@@ -190,9 +190,10 @@ class ServerWebsocket(WebSocketClient):
                 return
             self.last_partial_result = result
             logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
-            processed_transcripts = yield self.post_process([result], blocking=False)
+            #processed_transcripts = yield self.post_process([result], blocking=False)
+            processed_transcripts = result
             if processed_transcripts:
-                logger.info("%s: Postprocessing done." % self.request_id)
+                logger.info("%s: Postprocessing done. [result: %s]" % (self.request_id, processed_transcripts[0]))
                 event = dict(status=common.STATUS_SUCCESS,
                              segment=self.num_segments,
                              result=dict(hypotheses=[dict(transcript=processed_transcripts[0])], final=final))
@@ -321,7 +322,7 @@ class ServerWebsocket(WebSocketClient):
                 with (yield self.post_processor_lock.acquire(timeout)):
                     result = []
                     for text in texts:
-                        self.post_processor.stdin.write("%s\n" % text.encode("utf-8"))
+                        self.post_processor.stdin.write("%s\n" % text)
                         self.post_processor.stdin.flush()
                         logging.debug("%s: Starting postprocessing: %s"  % (self.request_id, text))
                         text = yield self.post_processor.stdout.read_until('\n')

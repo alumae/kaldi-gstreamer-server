@@ -127,7 +127,7 @@ class ServerWebsocket(WebSocketClient):
                     if 'adaptation_state' in props:
                         as_props = props['adaptation_state']
                         if as_props.get('type', "") == "string+gzip+base64":
-                            adaptation_state = zlib.decompress(base64.b64decode(as_props.get('value', '')))
+                            adaptation_state = zlib.decompress(base64.b64decode(as_props.get('value', ''))).decode("utf-8")
                             logger.info("%s: Setting adaptation state to user-provided value" % (self.request_id))
                             self.decoder_pipeline.set_adaptation_state(adaptation_state)
                         else:
@@ -190,8 +190,7 @@ class ServerWebsocket(WebSocketClient):
                 return
             self.last_partial_result = result
             logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
-            #processed_transcripts = yield self.post_process([result], blocking=False)
-            processed_transcripts = result
+            processed_transcripts = yield self.post_process([result], blocking=False)
             if processed_transcripts:
                 logger.info("%s: Postprocessing done. [result: %s]" % (self.request_id, processed_transcripts[0]))
                 event = dict(status=common.STATUS_SUCCESS,
@@ -299,7 +298,7 @@ class ServerWebsocket(WebSocketClient):
             adaptation_state = self.decoder_pipeline.get_adaptation_state()
             event = dict(status=common.STATUS_SUCCESS,
                          adaptation_state=dict(id=self.request_id,
-                                               value=base64.b64encode(zlib.compress(adaptation_state.encode())),
+                                               value=base64.b64encode(zlib.compress(adaptation_state.encode())).decode("utf-8"),
                                                type="string+gzip+base64",
                                                time=time.strftime("%Y-%m-%dT%H:%M:%S")))
             try:
@@ -319,7 +318,7 @@ class ServerWebsocket(WebSocketClient):
             else:
                 timeout=0.0
             try:
-                with (yield self.post_processor_lock.acquire(timeout)):
+                with (yield self.post_processor_lock.acquire()):
                     result = []
                     for text in texts:
                         self.post_processor.stdin.write("%s\n" % text)

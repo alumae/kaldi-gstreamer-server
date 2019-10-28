@@ -192,7 +192,7 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Postprocessing (final=%s) result.."  % (self.request_id, final))
             processed_transcripts = yield self.post_process([result], blocking=False)
             if processed_transcripts:
-                logger.info("%s: Postprocessing done. [result: %s]" % (self.request_id, processed_transcripts[0]))
+                logger.info("%s: Postprocessing done." % (self.request_id))
                 event = dict(status=common.STATUS_SUCCESS,
                              segment=self.num_segments,
                              result=dict(hypotheses=[dict(transcript=processed_transcripts[0])], final=final))

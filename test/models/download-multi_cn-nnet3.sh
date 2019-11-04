@@ -1,7 +1,7 @@
 #! /bin/bash
 
 BASE_URL=http://kaldi-asr.org/models/11/
-MODEL=0011_multi_cn_chain_sp_online.tar.gz
+MODEL=0011_multi_cn_chain_sp_online_v2.tar.gz
 
 modeldir=`dirname $0`/chinese
 

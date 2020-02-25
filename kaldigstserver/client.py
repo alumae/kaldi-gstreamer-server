@@ -70,7 +70,7 @@ class MyClient(WebSocketClient):
         #print >> sys.stderr, "JSON was:", m
         if response['status'] == 0:
             if 'result' in response:
-                trans = response['result']['hypotheses'][0]['transcript']
+                trans = response['result']['hypotheses'][0]['transcript'].encode('utf-8')
                 if response['result']['final']:
                     #print >> sys.stderr, trans,
                     self.final_hyps.append(trans)
@@ -121,7 +121,7 @@ def main():
                   save_adaptation_state_filename=args.save_adaptation_state, send_adaptation_state_filename=args.send_adaptation_state)
     ws.connect()
     result = ws.get_full_hyp()
-    print result.encode('utf-8')
+    print result
 
 if __name__ == "__main__":
     main()

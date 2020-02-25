@@ -143,6 +143,13 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     def put(self, *args, **kwargs):
         self.end_request(args, kwargs)
 
+    def options(self, *args, **kwargs):
+        self.set_header('Access-Control-Allow-Origin', '*')
+        self.set_header('Access-Control-Allow-Methods', 'POST, PUT, OPTIONS')
+        self.set_header('Access-Control-Max-Age', 1000)
+        # note that '*' is not valid for Access-Control-Allow-Headers
+        self.set_header('Access-Control-Allow-Headers',  'origin, x-csrftoken, content-type, accept, User-Id, Content-Id')
+
     @tornado.concurrent.run_on_executor
     def get_final_hyp(self):
         logging.info("%s: Waiting for final result..." % self.id)

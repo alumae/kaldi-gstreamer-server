@@ -3,8 +3,6 @@ __author__ = 'tanel'
 import logging
 import logging.config
 import time
-import _thread
-import threading
 import os
 import argparse
 from subprocess import Popen, PIPE
@@ -24,22 +22,29 @@ import tornado.gen
 import tornado.process
 import tornado.ioloop
 import tornado.locks
-from ws4py.client.threadedclient import WebSocketClient
-import ws4py.messaging
+import tornado.websocket
+#from ws4py.client.threadedclient import WebSocketClient
+#import ws4py.messaging
 
 from decoder import DecoderPipeline
 from decoder2 import DecoderPipeline2
 
 import common
 
+from concurrent.futures import ThreadPoolExecutor
+from tornado.concurrent import run_on_executor
+
+
 logger = logging.getLogger(__name__)
+
+executor = ThreadPoolExecutor(max_workers=5)
 
 CONNECT_TIMEOUT = 5
 SILENCE_TIMEOUT = 5
 USE_NNET2 = False
 
         
-class ServerWebsocket(WebSocketClient):
+class Worker():
     STATE_CREATED = 0
     STATE_CONNECTED = 1
     STATE_INITIALIZED = 2
@@ -53,7 +58,6 @@ class ServerWebsocket(WebSocketClient):
         self.decoder_pipeline = decoder_pipeline
         self.post_processor = post_processor
         self.full_post_processor = full_post_processor
-        WebSocketClient.__init__(self, url=uri, heartbeat_freq=10)
         self.pipeline_initialized = False
         self.partial_transcript = ""
         if USE_NNET2:
@@ -65,24 +69,31 @@ class ServerWebsocket(WebSocketClient):
             self.decoder_pipeline.set_error_handler(self._on_error)
         self.decoder_pipeline.set_eos_handler(self._on_eos)
         self.state = self.STATE_CREATED
-        self.last_decoder_message = time.time()
         self.request_id = "<undefined>"
         self.timeout_decoder = 5
         self.num_segments = 0
         self.last_partial_result = ""
-        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
         self.post_processor_lock = tornado.locks.Lock()
         self.processing_condition = tornado.locks.Condition()
         self.num_processing_threads = 0
         
-        
-    def opened(self):
+    @tornado.gen.coroutine
+    def connect_and_run(self):
+        logger.info("Opening websocket connection to master server")
+        self.ws = yield tornado.websocket.websocket_connect(self.uri, ping_interval=10)
         logger.info("Opened websocket connection to server")
         self.state = self.STATE_CONNECTED
         self.last_partial_result = ""
+        self.last_decoder_message = time.time()
+        while True:     
+            msg = yield self.ws.read_message()
+            self.received_message(msg)
+            if msg is None: 
+                self.closed()
+                break
+        logger.info("Finished decoding run")
     
     def guard_timeout(self):
-        asyncio.set_event_loop(asyncio.new_event_loop())
         global SILENCE_TIMEOUT
         while self.state in [self.STATE_EOS_RECEIVED, self.STATE_CONNECTED, self.STATE_INITIALIZED, self.STATE_PROCESSING]:
             if time.time() - self.last_decoder_message > SILENCE_TIMEOUT:
@@ -90,10 +101,10 @@ class ServerWebsocket(WebSocketClient):
                 self.finish_request()
                 event = dict(status=common.STATUS_NO_SPEECH)
                 try:
-                    self.send(json.dumps(event))
+                    self.ws.write_message(json.dumps(event))
                 except:
                     logger.warning("%s: Failed to send error event to master" % (self.request_id))
-                self.close()
+                self.ws.close()
                 return
             logger.debug("%s: Checking that decoder hasn't been silent for more than %d seconds" % (self.request_id, SILENCE_TIMEOUT))
             time.sleep(1)
@@ -101,17 +112,17 @@ class ServerWebsocket(WebSocketClient):
     def received_message(self, m):
         logger.debug("%s: Got message from server of type %s" % (self.request_id, str(type(m))))
         if self.state == self.__class__.STATE_CONNECTED:
-            props = json.loads(m.data.decode("utf-8"))
+            props = json.loads(m)
             content_type = props['content_type']
             self.request_id = props['id']
             self.num_segments = 0
             self.decoder_pipeline.init_request(self.request_id, content_type)
             self.last_decoder_message = time.time()
-            _thread.start_new_thread(self.guard_timeout, ())
+            tornado.ioloop.IOLoop.current().run_in_executor(executor, self.guard_timeout)
             logger.info("%s: Started timeout guard" % self.request_id)
             logger.info("%s: Initialized request" % self.request_id)
             self.state = self.STATE_INITIALIZED
-        elif m.data == "EOS":
+        elif m == "EOS":
             if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED and self.state != self.STATE_FINISHED:
                 self.decoder_pipeline.end_request()
                 self.state = self.STATE_EOS_RECEIVED
@@ -119,10 +130,10 @@ class ServerWebsocket(WebSocketClient):
                 logger.info("%s: Ignoring EOS, worker already in state %d" % (self.request_id, self.state))
         else:
             if self.state != self.STATE_CANCELLING and self.state != self.STATE_EOS_RECEIVED and self.state != self.STATE_FINISHED:
-                if isinstance(m, ws4py.messaging.BinaryMessage):
-                    self.decoder_pipeline.process_data(m.data)
+                if isinstance(m, bytes):
+                    self.decoder_pipeline.process_data(m)
                     self.state = self.STATE_PROCESSING
-                elif isinstance(m, ws4py.messaging.TextMessage):
+                elif isinstance(m, str):
                     props = json.loads(str(m))
                     if 'adaptation_state' in props:
                         as_props = props['adaptation_state']
@@ -167,7 +178,7 @@ class ServerWebsocket(WebSocketClient):
             logger.info("%s: Finished waiting for EOS" % self.request_id)
 
 
-    def closed(self, code, reason=None):
+    def closed(self):
         logger.debug("%s: Websocket closed() called" % self.request_id)
         self.finish_request()
         logger.debug("%s: Websocket closed() finished" % self.request_id)
@@ -197,7 +208,7 @@ class ServerWebsocket(WebSocketClient):
                              segment=self.num_segments,
                              result=dict(hypotheses=[dict(transcript=processed_transcripts[0])], final=final))
                 try:
-                    self.send(json.dumps(event))
+                    self.ws.write_message(json.dumps(event))
                 except:
                     e = sys.exc_info()[1]
                     logger.warning("Failed to send event to master: %s" % e)
@@ -220,7 +231,7 @@ class ServerWebsocket(WebSocketClient):
                 logger.debug(u"%s: After postprocessing: %s" % (self.request_id, repr(full_result)))
 
                 try:
-                    self.send(json.dumps(full_result))
+                    self.ws.write_message(json.dumps(full_result))
                 except:
                     e = sys.exc_info()[1]
                     logger.warning("Failed to send event to master: %s" % e)
@@ -230,7 +241,7 @@ class ServerWebsocket(WebSocketClient):
             else:
                 logger.info("%s: Result status is %d, forwarding the result to the server anyway" % (self.request_id, full_result.get("status", -1)))
                 try:
-                    self.send(json.dumps(full_result))
+                    self.ws.write_message(json.dumps(full_result))
                 except:
                     e = sys.exc_info()[1]
                     logger.warning("Failed to send event to master: %s" % e)
@@ -255,7 +266,7 @@ class ServerWebsocket(WebSocketClient):
                     event = dict(status=common.STATUS_SUCCESS,
                                  segment=self.num_segments,
                                  result=dict(hypotheses=[dict(transcript=processed_transcript)], final=False))
-                    self.send(json.dumps(event))
+                    self.ws.write_message(json.dumps(event))
             else:
                 logger.info("%s: Postprocessing final result.."  % self.request_id)
                 processed_transcript = (yield self.post_process(self.partial_transcript, blocking=True))
@@ -263,7 +274,7 @@ class ServerWebsocket(WebSocketClient):
                 event = dict(status=common.STATUS_SUCCESS,
                              segment=self.num_segments,
                              result=dict(hypotheses=[dict(transcript=processed_transcript)], final=True))
-                self.send(json.dumps(event))
+                self.ws.write_message(json.dumps(event))
                 self.partial_transcript = ""
                 self.num_segments += 1
         finally:
@@ -280,17 +291,17 @@ class ServerWebsocket(WebSocketClient):
         
         self.state = self.STATE_FINISHED
         self.send_adaptation_state()
-        self.close()
+        self.ws.close()
 
     def _on_error(self, error):
         self.state = self.STATE_FINISHED
         event = dict(status=common.STATUS_NOT_ALLOWED, message=error)
         try:
-            self.send(json.dumps(event))
+            self.ws.write_message(json.dumps(event))
         except:
             e = sys.exc_info()[1]
             logger.warning("Failed to send event to master: %s" % e)
-        self.close()
+        self.ws.close()
 
     def send_adaptation_state(self):
         if hasattr(self.decoder_pipeline, 'get_adaptation_state'):
@@ -302,7 +313,7 @@ class ServerWebsocket(WebSocketClient):
                                                type="string+gzip+base64",
                                                time=time.strftime("%Y-%m-%dT%H:%M:%S")))
             try:
-                self.send(json.dumps(event))
+                self.ws.write_message(json.dumps(event))
             except:
                 e = sys.exc_info()[1]
                 logger.warning("Failed to send event to master: " + str(e))
@@ -312,30 +323,33 @@ class ServerWebsocket(WebSocketClient):
     @tornado.gen.coroutine
     def post_process(self, texts, blocking=False):
         if self.post_processor:
-            logging.debug("%s: Waiting for postprocessor lock" % self.request_id)
+            logging.debug("%s: Waiting for postprocessor lock with blocking=%d" % (self.request_id, blocking))
             if blocking:
-                timeout=None
+                timeout = None
             else:
-                timeout=0.0
+                timeout = 0.1
             try:
-                with (yield self.post_processor_lock.acquire()):
+                with (yield self.post_processor_lock.acquire(timeout)):
                     result = []
                     for text in texts:
-                        self.post_processor.stdin.write("%s\n" % text)
-                        self.post_processor.stdin.flush()
-                        logging.debug("%s: Starting postprocessing: %s"  % (self.request_id, text))
-                        text = yield self.post_processor.stdout.read_until('\n')
-                        text = text.decode("utf-8")
-                        logging.debug("%s: Postprocessing returned: %s"  % (self.request_id, text))
-                        text = text.strip()
-                        text = text.replace("\\n", "\n")
-                        result.append(text)
-                    raise tornado.gen.Return(result)
-            except tornado.gen.TimeoutError:
-                logging.debug("%s: Skipping postprocessing since post-processor already in use"  % (self.request_id))
-                raise tornado.gen.Return(None)
+                        try:
+                            logging.debug("%s: Starting postprocessing: %s"  % (self.request_id, text))
+                            self.post_processor.stdin.write((text + "\n").encode("utf-8"))
+                            self.post_processor.stdin.flush()
+                            logging.debug("%s: Reading from postpocessor"  % (self.request_id))
+                            text = yield self.post_processor.stdout.read_until(b'\n')
+                            text = text.decode("utf-8").strip()
+                            logging.debug("%s: Postprocessing returned: %s"  % (self.request_id, text))
+                            text = text.replace("\\n", "\n")
+                            result.append(text)
+                        except Exception as ex:
+                            logging.exception("Error when postprocessing")
+                    return result
+            except tornado.util.TimeoutError:
+                logging.info("%s: Skipping postprocessing since post-processor already in use"  % (self.request_id))
+                return None
         else:
-            raise tornado.gen.Return(texts)
+            return texts
             
     @tornado.gen.coroutine
     def post_process_full(self, full_result):
@@ -359,20 +373,19 @@ class ServerWebsocket(WebSocketClient):
             for (i, hyp) in enumerate(full_result.get("result", {}).get("hypotheses", [])):
                 hyp["original-transcript"] = hyp["transcript"]
                 hyp["transcript"] = processed_transcripts[i]
-        raise tornado.gen.Return(full_result)        
+        return full_result
 
+@tornado.gen.coroutine
 def main_loop(uri, decoder_pipeline, post_processor, full_post_processor=None):
     while True:
-        ws = ServerWebsocket(uri, decoder_pipeline, post_processor, full_post_processor=full_post_processor)
-        try:
-            logger.info("Opening websocket connection to master server")
-            ws.connect()
-            ws.run_forever()
+        worker = Worker(uri, decoder_pipeline, post_processor, full_post_processor=full_post_processor)
+        try:            
+            yield worker.connect_and_run()
         except Exception:
             logger.error("Couldn't connect to server, waiting for %d seconds", CONNECT_TIMEOUT)
-            time.sleep(CONNECT_TIMEOUT)
+            yield tornado.gen.sleep(CONNECT_TIMEOUT)
         # fixes a race condition
-        time.sleep(1)
+        yield tornado.gen.sleep(1)
 
 
 
@@ -403,7 +416,7 @@ def main():
     post_processor = None
     if "post-processor" in conf:
         STREAM = tornado.process.Subprocess.STREAM
-        post_processor = tornado.process.Subprocess(conf["post-processor"], shell=True, stdin=PIPE, stdout=STREAM)
+        post_processor = tornado.process.Subprocess(conf["post-processor"], shell=True, stdin=PIPE, stdout=STREAM, )
         
 
     full_post_processor = None
@@ -416,13 +429,13 @@ def main():
     global SILENCE_TIMEOUT
     SILENCE_TIMEOUT = conf.get("silence-timeout", 5)
     if USE_NNET2:
-        decoder_pipeline = DecoderPipeline2(conf)
+        decoder_pipeline = DecoderPipeline2(tornado.ioloop.IOLoop.current(), conf)
     else:
-        decoder_pipeline = DecoderPipeline(conf)
+        decoder_pipeline = DecoderPipeline(tornado.ioloop.IOLoop.current(), conf)
 
-    loop = GObject.MainLoop()
-    _thread.start_new_thread(loop.run, ())
-    _thread.start_new_thread(main_loop, (args.uri, decoder_pipeline, post_processor, full_post_processor))  
+    gobject_loop = GObject.MainLoop()
+    tornado.ioloop.IOLoop.current().run_in_executor(executor, gobject_loop.run)
+    tornado.ioloop.IOLoop.current().spawn_callback(main_loop, args.uri, decoder_pipeline, post_processor, full_post_processor)
     tornado.ioloop.IOLoop.current().start()
 
 

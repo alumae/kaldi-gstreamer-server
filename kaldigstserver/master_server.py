@@ -248,6 +248,7 @@ class WorkerSocketHandler(tornado.websocket.WebSocketHandler):
         logging.info("Worker " + self.__str__() + " leaving")
         self.application.available_workers.discard(self)
         if self.client_socket:
+            logging.info("Closing client connection")
             self.client_socket.close()
         self.application.send_status_update()
 

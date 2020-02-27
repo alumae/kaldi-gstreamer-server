@@ -13,14 +13,16 @@ Gst.init(None)
 import logging
 import _thread
 import os
+import sys
 from collections import OrderedDict
+import tornado.ioloop
 
 logger = logging.getLogger(__name__)
 
 import pdb
 
 class DecoderPipeline2(object):
-    def __init__(self, conf={}):
+    def __init__(self, ioloop, conf={}):
         logger.info("Creating decoder using conf: %s" % conf)
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
@@ -35,6 +37,7 @@ class DecoderPipeline2(object):
         self.eos_handler = None
         self.error_handler = None
         self.request_id = "<undefined>"
+        self.ioloop = ioloop
 
 
     def create_pipeline(self, conf):
@@ -51,20 +54,22 @@ class DecoderPipeline2(object):
         self.fakesink = Gst.ElementFactory.make("fakesink", "fakesink")
 
         if not self.asr:
-            print >> sys.stderr, "ERROR: Couldn't create the kaldinnet2onlinedecoder element!"
+            print("ERROR: Couldn't create the kaldinnet2onlinedecoder element!", file=sys.stderr)
             gst_plugin_path = os.environ.get("GST_PLUGIN_PATH")
             if gst_plugin_path:
-                print >> sys.stderr, \
+                print(
                     "Couldn't find kaldinnet2onlinedecoder element at %s. " \
                     "If it's not the right path, try to set GST_PLUGIN_PATH to the right one, and retry. " \
                     "You can also try to run the following command: " \
                     "'GST_PLUGIN_PATH=%s gst-inspect-1.0 kaldinnet2onlinedecoder'." \
-                    % (gst_plugin_path, gst_plugin_path)
+                    % (gst_plugin_path, gst_plugin_path),
+                    file=sys.stderr)
             else:
-                print >> sys.stderr, \
+                print(
                     "The environment variable GST_PLUGIN_PATH wasn't set or it's empty. " \
-                    "Try to set GST_PLUGIN_PATH environment variable, and retry."
-            sys.exit(-1);
+                    "Try to set GST_PLUGIN_PATH environment variable, and retry.",
+                    file=sys.stderr)
+            sys.exit(-1)
 
         # This needs to be set first
         if "use-threaded-decoder" in conf["decoder"]:
@@ -141,31 +146,32 @@ class DecoderPipeline2(object):
     def _on_partial_result(self, asr, hyp):
         logger.info("%s: Got partial result: %s" % (self.request_id, hyp))
         if self.result_handler:
-            self.result_handler(hyp, False)
+            self.ioloop.add_callback(self.result_handler, hyp, False)
 
     def _on_final_result(self, asr, hyp):
         logger.info("%s: Got final result: %s" % (self.request_id, hyp))
         if self.result_handler:
-            self.result_handler(hyp, True)
+            self.ioloop.add_callback(self.result_handler, hyp, True)
 
     def _on_full_final_result(self, asr, result_json):
         logger.info("%s: Got full final result: %s" % (self.request_id, result_json))
         if self.full_result_handler:
-            self.full_result_handler(result_json)
+            self.ioloop.add_callback(self.full_result_handler, result_json)
 
     def _on_error(self, bus, msg):
         self.error = msg.parse_error()
         logger.error(self.error)
         self.finish_request()
         if self.error_handler:
-            self.error_handler(self.error[0].message)
+            self.ioloop.add_callback(self.error_handler, self.error[0].message)
 
     def _on_eos(self, bus, msg):
         logger.info('%s: Pipeline received eos signal' % self.request_id)
         #self.decodebin.unlink(self.audioconvert)
         self.finish_request()
         if self.eos_handler:
-            self.eos_handler[0](self.eos_handler[1])
+            self.ioloop.add_callback(self.eos_handler[0], self.eos_handler[1])
+            
 
     def get_adaptation_state(self):
         return self.asr.get_property("adaptation-state")

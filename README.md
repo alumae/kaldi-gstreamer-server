@@ -33,6 +33,9 @@ Estonian demo: http://bark.phon.ioc.ee/dikteeri/
 
 Changelog
 ---------
+  * 2020-03-06: Quite big changes. Upgraded to Python 3 (Python 2.7 is not upported any more). Also, migrated to
+    use Tornado 6. Also, worker.py and client.py now uses Tornado's websocket client and ws4py is not needed any more.
+    Post-processing should also work fine. 
   * 2019-06-17: The postprocessing mechanism doesn't work properly with Tornado 5+. Use Tornado 4.5.3 if you need it.
   * 2018-04-25: Server should now work with Tornado 5 (thanks to @Gastron). If using Python 2, you might need to install the `futures` package (`pip install futures`).
   * 2017-12-27: Somewhat big changes in the way post-processor is invoked. The problem was that in some use cases, the program that is used for
@@ -69,19 +72,13 @@ all the prerequisites manually, one could use the Dockerfile created by José Ed
 
 ### Requirements
 
-#### Python 2.7 with the following packages:
+#### Python 3.5.2 or newer with the following packages:
 
-  * Tornado 4, see http://www.tornadoweb.org/en/stable/
-  * ws4py (0.3.0 .. 0.3.2)
+  * Tornado 6, see http://www.tornadoweb.org/en/stable/
   * YAML
   * JSON
 
-*NB!*: The server doesn't work quite correctly with ws4py 0.3.5 because of a bug I reported here: https://github.com/Lawouach/WebSocket-for-Python/issues/152.
-Use ws4py 0.3.2 instead. To install ws4py 0.3.2 using `pip`, run:
-
-    pip install ws4py==0.3.2
-
-In addition, you need Python 2.x bindings for gobject-introspection libraries, provided by the `python-gi`
+In addition, you need Python bindings for gobject-introspection libraries, provided by the `python-gi`
 package on Debian and Ubuntu.
 
 #### Kaldi
@@ -98,7 +95,7 @@ English models are based on Voxforge acoustic models and the CMU Sphinx  2013 ge
 The language models were heavily pruned so that the resulting FST cascade would be less than the
 100 MB GitHub file size limit.
 
-*Update:* the server also supports Kaldi's new "online2" online decoder that uses DNN-based acoustic models with i-vector input. See below on
+*Update:* the server also supports Kaldi's "online2" online decoder that uses DNN-based acoustic models with i-vector input. See below on
 how to use it. According to experiments on two Estonian online decoding setups, the DNN-based models result in about 20% (or more) relatively less
 errors than GMM-based models (e.g., WER dropped from 13% to 9%).
 

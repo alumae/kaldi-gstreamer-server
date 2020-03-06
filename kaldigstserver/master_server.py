@@ -15,7 +15,7 @@ import uuid
 import time
 import threading
 import functools
-from queue import Queue
+from tornado.locks import Condition
 
 import tornado.ioloop
 import tornado.options
@@ -102,11 +102,10 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
     Provides a HTTP POST/PUT interface supporting chunked transfer requests, similar to that provided by
     http://github.com/alumae/ruby-pocketsphinx-server.
     """
-
     def prepare(self):
         self.id = str(uuid.uuid4())
         self.final_hyp = ""
-        self.final_result_queue = Queue()
+        self.worker_done = Condition()
         self.user_id = self.request.headers.get("device-id", "none")
         self.content_id = self.request.headers.get("content-id", "none")
         logging.info("%s: OPEN: user='%s', content='%s'" % (self.id, self.user_id, self.content_id))
@@ -114,7 +113,7 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         self.error_status = 0
         self.error_message = None
         #Waiter thread for final hypothesis:
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1) 
+        #self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1) 
         try:
             self.worker = self.application.available_workers.pop()
             self.application.send_status_update()
@@ -132,32 +131,35 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
             self.set_status(503)
             self.finish("No workers available")
 
+    @tornado.gen.coroutine
     def data_received(self, chunk):
         assert self.worker is not None
         logging.debug("%s: Forwarding client message of length %d to worker" % (self.id, len(chunk)))
         self.worker.write_message(chunk, binary=True)
-
+    
+    @tornado.gen.coroutine
     def post(self, *args, **kwargs):
-        self.end_request(args, kwargs)
+        yield self.end_request(args, kwargs)
 
+    @tornado.gen.coroutine
     def put(self, *args, **kwargs):
-        self.end_request(args, kwargs)
+        yield self.end_request(args, kwargs)
 
-    @tornado.concurrent.run_on_executor
+    @tornado.gen.coroutine
     def get_final_hyp(self):
         logging.info("%s: Waiting for final result..." % self.id)
-        return self.final_result_queue.get(block=True)
+        yield self.final_result_queue.get()
 
     @tornado.gen.coroutine
     def end_request(self, *args, **kwargs):
         logging.info("%s: Handling the end of chunked recognize request" % self.id)
         assert self.worker is not None
-        self.worker.write_message("EOS", binary=True)
-        logging.info("%s: yielding..." % self.id)
-        hyp = yield self.get_final_hyp()
+        self.worker.write_message("EOS", binary=False)
+        logging.info("%s: Waiting for worker to finish" % self.id)
+        yield self.worker_done.wait()
         if self.error_status == 0:
-            logging.info("%s: Final hyp: %s" % (self.id, hyp))
-            response = {"status" : 0, "id": self.id, "hypotheses": [{"utterance" : hyp}]}
+            logging.info("%s: Final hyp: %s" % (self.id, self.final_hyp))
+            response = {"status" : 0, "id": self.id, "hypotheses": [{"utterance" : self.final_hyp}]}
             self.write(response)
         else:
             logging.info("%s: Error (status=%d) processing HTTP request: %s" % (self.id, self.error_status, self.error_message))
@@ -170,6 +172,7 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
         self.finish()
         logging.info("Everything done")
 
+    @tornado.gen.coroutine
     def send_event(self, event):
         event_str = str(event)
         if len(event_str) > 100:
@@ -188,9 +191,10 @@ class HttpChunkedRecognizeHandler(tornado.web.RequestHandler):
             self.error_status = event["status"]
             self.error_message = event.get("message", "")
 
+    @tornado.gen.coroutine
     def close(self):
         logging.info("%s: Receiving 'close' from worker" % (self.id))
-        self.final_result_queue.put(self.final_hyp)
+        self.worker_done.notify()
 
 
 class ReferenceHandler(tornado.web.RequestHandler):

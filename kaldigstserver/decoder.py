@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 import pdb
 
 class DecoderPipeline(object):
-    def __init__(self, conf={}):
+    def __init__(self, ioloop, conf={}):
         logger.info("Creating decoder using conf: %s" % conf)
+        self.ioloop = ioloop
         self.use_cutter = conf.get("use-vad", False)
         self.create_pipeline(conf)
         self.outdir = conf.get("out-dir", None)
@@ -69,7 +70,7 @@ class DecoderPipeline(object):
                     file=sys.stderr)
             sys.exit(-1)
 
-        for (key, val) in conf.get("decoder", {}).iteritems():
+        for (key, val) in conf.get("decoder", {}).items():
             logger.info("Setting decoder property: %s = %s" % (key, val))
             self.asr.set_property(key, val)
 
@@ -151,23 +152,22 @@ class DecoderPipeline(object):
                 self.asr.set_property("silent", True)
 
     def _on_word(self, asr, word):
-        logger.info("%s: Got word: %s" % (self.request_id, word.decode('utf8')))
+        logger.info("%s: Got word: %s" % (self.request_id, word))
         if self.word_handler:
-            self.word_handler(word)
-
+            self.ioloop.add_callback(self.word_handler, word)
 
     def _on_error(self, bus, msg):
         self.error = msg.parse_error()
         logger.error(self.error)
         self.finish_request()
         if self.error_handler:
-            self.error_handler(self.error[0].message)
+            self.ioloop.add_callback(self.error_handler, self.error[0].message)
 
     def _on_eos(self, bus, msg):
         logger.info('%s: Pipeline received eos signal' % self.request_id)
         self.finish_request()
         if self.eos_handler:
-            self.eos_handler[0](self.eos_handler[1])
+            self.ioloop.add_callback(self.eos_handler[0], self.eos_handler[1])
 
     def finish_request(self):
         logger.info('%s: Finishing request' % self.request_id)

@@ -259,21 +259,21 @@ class Worker():
                     self.partial_transcript += " "
                 self.partial_transcript += word
                 logger.debug("%s: Postprocessing partial result.."  % self.request_id)
-                processed_transcript = (yield self.post_process([self.partial_transcript], blocking=False))[0]
-                if processed_transcript:
+                processed_transcripts = (yield self.post_process([self.partial_transcript], blocking=False))
+                if processed_transcripts:
                     logger.debug("%s: Postprocessing done." % self.request_id)
 
                     event = dict(status=common.STATUS_SUCCESS,
                                  segment=self.num_segments,
-                                 result=dict(hypotheses=[dict(transcript=processed_transcript)], final=False))
+                                 result=dict(hypotheses=[dict(transcript=processed_transcripts[0])], final=False))
                     self.ws.write_message(json.dumps(event))
             else:
                 logger.info("%s: Postprocessing final result.."  % self.request_id)
-                processed_transcript = (yield self.post_process(self.partial_transcript, blocking=True))
+                processed_transcripts = (yield self.post_process([self.partial_transcript], blocking=True))
                 logger.info("%s: Postprocessing done." % self.request_id)
                 event = dict(status=common.STATUS_SUCCESS,
                              segment=self.num_segments,
-                             result=dict(hypotheses=[dict(transcript=processed_transcript)], final=True))
+                             result=dict(hypotheses=[dict(transcript=processed_transcripts[0])], final=True))
                 self.ws.write_message(json.dumps(event))
                 self.partial_transcript = ""
                 self.num_segments += 1

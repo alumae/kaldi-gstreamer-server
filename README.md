@@ -8,7 +8,7 @@ the Kaldi toolkit and the GStreamer framework and implemented in Python.
 
 Advertisement
 -------------
-[Laboratory of Language Technology](https://www.taltech.ee/projects/language-technology-lab/) of Tallinn University of Technology is looking for a PhD student to work on speech recognition, with a focus on lightly code-switched speech (e.g. Finnish containing a lot of English technical terms). [More information about the topic, how to apply, requirements, funding](https://www.ttu.ee/projects/language-technology-lab/study-15/phd-studies-8/).
+[Laboratory of Language Technology](https://old.taltech.ee/projects/language-technology-lab/) of Tallinn University of Technology is looking for a PhD student to work on speech recognition, with a focus on lightly code-switched speech (e.g. Finnish containing a lot of English technical terms). [More information about the topic, how to apply, requirements, funding](https://taltech.glowbase.com/positions/79).
 
 *NB!* The position is still open!
 

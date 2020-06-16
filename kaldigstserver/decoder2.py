@@ -11,7 +11,7 @@ from gi.repository import GObject, Gst
 GObject.threads_init()
 Gst.init(None)
 import logging
-import thread
+import _thread
 import os
 from collections import OrderedDict
 
@@ -83,7 +83,7 @@ class DecoderPipeline2(object):
         if "model" in decoder_config:
             decoder_config["model"] = decoder_config.pop("model")
         
-        for (key, val) in decoder_config.iteritems():
+        for (key, val) in decoder_config.items():
             if key != "use-threaded-decoder":
                 logger.info("Setting decoder property: %s = %s" % (key, val))
                 self.asr.set_property(key, val)
@@ -139,17 +139,17 @@ class DecoderPipeline2(object):
 
 
     def _on_partial_result(self, asr, hyp):
-        logger.info("%s: Got partial result: %s" % (self.request_id, hyp.decode('utf8')))
+        logger.info("%s: Got partial result: %s" % (self.request_id, hyp))
         if self.result_handler:
-            self.result_handler(hyp.decode('utf8'), False)
+            self.result_handler(hyp, False)
 
     def _on_final_result(self, asr, hyp):
-        logger.info("%s: Got final result: %s" % (self.request_id, hyp.decode('utf8')))
+        logger.info("%s: Got final result: %s" % (self.request_id, hyp))
         if self.result_handler:
-            self.result_handler(hyp.decode('utf8'), True)
+            self.result_handler(hyp, True)
 
     def _on_full_final_result(self, asr, result_json):
-        logger.info("%s: Got full final result: %s" % (self.request_id, result_json.decode('utf8')))
+        logger.info("%s: Got full final result: %s" % (self.request_id, result_json))
         if self.full_result_handler:
             self.full_result_handler(result_json)
 

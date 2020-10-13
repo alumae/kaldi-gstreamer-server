@@ -22,12 +22,12 @@ def rate_limited(maxPerSecond):
     def decorate(func):
         last_time_called = [0.0]
         def rate_limited_function(*args,**kargs):
-            elapsed = time.clock() - last_time_called[0]
+            elapsed = time.perf_counter() - last_time_called[0]
             left_to_wait = min_interval - elapsed
             if left_to_wait > 0:
                 yield gen.sleep(left_to_wait)
             ret = func(*args,**kargs)
-            last_time_called[0] = time.clock()
+            last_time_called[0] = time.perf_counter()
             return ret
         return rate_limited_function
     return decorate

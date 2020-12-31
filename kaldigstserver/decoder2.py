@@ -13,6 +13,7 @@ Gst.init(None)
 import logging
 import thread
 import os
+import sys
 from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,7 @@ class DecoderPipeline2(object):
             decoder_config["fst"] = decoder_config.pop("fst")
         if "model" in decoder_config:
             decoder_config["model"] = decoder_config.pop("model")
-        
+
         for (key, val) in decoder_config.iteritems():
             if key != "use-threaded-decoder":
                 logger.info("Setting decoder property: %s = %s" % (key, val))
@@ -208,7 +209,7 @@ class DecoderPipeline2(object):
             self.filesink.set_property('location', "%s/%s.raw" % (self.outdir, id))
             self.filesink.set_state(Gst.State.PLAYING)
 
-        #self.filesink.set_state(Gst.State.PLAYING)        
+        #self.filesink.set_state(Gst.State.PLAYING)
         #self.decodebin.set_state(Gst.State.PLAYING)
         self.pipeline.set_state(Gst.State.PLAYING)
         self.filesink.set_state(Gst.State.PLAYING)

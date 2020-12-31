@@ -13,6 +13,7 @@ Gst.init(None)
 import logging
 import thread
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 
